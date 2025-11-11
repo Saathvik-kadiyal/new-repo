@@ -1,46 +1,36 @@
-import { useState, useMemo } from "react";
-import * as XLSX from "xlsx";
-import EmployeeModal from "./EmployeModel";
+import EmployeeModal from "./EmployeModel.jsx";
+import { useEmployeeData } from "../hooks/useEmployeeData.jsx"; 
 
-const DataTable = ({ headers, rows }) => {
-  const [modelOpen, setModelOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+const DataTable = ({ headers, rows, totalRecords, fetchPage }) => {
+  const {
+    modelOpen,
+    setModelOpen,
+    selectedEmployee,
+    loadingDetail,
+    error,
+    page,
+    totalPages,
+    handlePageChange,
+    handleIndividualEmployee,
+    EXPORT_HEADERS
+  } = useEmployeeData(fetchPage, totalRecords);
 
-  const totalPages = Math.ceil(rows.length / limit);
-  const skip = (page - 1) * limit;
-  const paginatedRows = useMemo(() => rows.slice(skip, skip + limit), [rows, skip, limit]);
 
-  const handleIndividualEmploye = (employee) => {
-    setSelectedEmployee(employee);
-    setModelOpen(true);
-  };
-
-  const handleIndividualDownload = () => {
-    const jsonData = Array.isArray(selectedEmployee) ? selectedEmployee : [selectedEmployee];
-    try {
-      const worksheet = XLSX.utils.json_to_sheet(jsonData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-      XLSX.writeFile(workbook, "IndividualEmployeeAllowanceData.xlsx");
-    } catch (error) {
-      console.error("Excel generation failed:", error);
-    }
-  };
 
   return (
     <div className="relative max-h-[500px] overflow-y-auto overflow-x-hidden border border-gray-300 rounded-lg shadow-sm">
-      <table
-        className={`w-full border-collapse text-sm text-gray-800 transition-all duration-300 ${
-          modelOpen ? "blur-sm pointer-events-none overflow-hidden" : ""
-        }`}
-      >
+      {error && (
+        <div className="p-2 text-center text-red-600 bg-red-50 border-b border-red-200">
+          {error}
+        </div>
+      )}
+
+      <table className="w-full border-collapse text-sm text-gray-800">
         <thead className="bg-gray-100 sticky top-0 z-10">
           <tr>
             {headers.map((header, index) => (
               <th
-                key={index + 1}
+                key={index}
                 className="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700 whitespace-nowrap"
               >
                 {header}
@@ -50,20 +40,25 @@ const DataTable = ({ headers, rows }) => {
         </thead>
 
         <tbody>
-          {paginatedRows.length > 0 ? (
-            paginatedRows.map((row, index) => (
+          {rows?.length > 0 ? (
+            rows.map((row, i) => (
               <tr
-                key={index}
-                onClick={() => handleIndividualEmploye(row)}
-                className="hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+                key={row.id || i}
+                onClick={() => {
+                  console.log("Row clicked:", row);
+                  handleIndividualEmployee(row.id)
+                  setModelOpen(true)
+                 
+                }}
+                className="hover:bg-gray-50 cursor-pointer"
               >
                 {headers.map((header) => (
                   <td
                     key={header}
-                    className="border border-gray-200 px-4 py-2 text-gray-700 max-w-[180px] truncate"
+                    className="border border-gray-200 px-4 py-2 text-gray-700 truncate"
                     title={row[header]}
                   >
-                    {row[header]}
+                    {row[header] || ""}
                   </td>
                 ))}
               </tr>
@@ -81,54 +76,36 @@ const DataTable = ({ headers, rows }) => {
         </tbody>
       </table>
 
-      <div className="flex items-center justify-between px-4 py-2 border-t bg-gray-50 sticky bottom-0">
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Rows per page:</label>
-          <select
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value));
-              setPage(1);
-            }}
-            className="border border-gray-300 rounded-md text-sm px-2 py-1 focus:ring-1 focus:ring-blue-400"
-          >
-            {[5, 10, 20, 50].map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-4">
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center px-4 py-2 border-t bg-gray-50 sticky bottom-0">
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => handlePageChange(page - 1)}
             disabled={page === 1}
             className="px-2 py-1 text-sm text-gray-700 border rounded-md disabled:opacity-50 hover:bg-gray-100"
           >
             Prev
           </button>
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 mx-3">
             Page {page} of {totalPages || 1}
           </span>
           <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages || totalPages === 0}
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page >= totalPages}
             className="px-2 py-1 text-sm text-gray-700 border rounded-md disabled:opacity-50 hover:bg-gray-100"
           >
             Next
           </button>
         </div>
-      </div>
+      )}
 
-      {modelOpen && (
+      {modelOpen && selectedEmployee && (
   <EmployeeModal
     employee={selectedEmployee}
-    headers={headers}
+    headers={EXPORT_HEADERS}
     onClose={() => setModelOpen(false)}
+    loading={loadingDetail}
   />
 )}
-
     </div>
   );
 };
