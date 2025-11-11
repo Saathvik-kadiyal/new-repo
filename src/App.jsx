@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import FileInput from "./pages/FileInput";
 import LoginPage from "./pages/LoginPage";
 import PrivateRoute from "./component/PrivateRoute";
+import ClientSummary from "./pages/ClientSummary";
 
 function App() {
   return (
@@ -14,6 +15,14 @@ function App() {
           element={
             <PrivateRoute>
               <FileInput />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/client-summary"
+          element={
+            <PrivateRoute>
+              <ClientSummary />
             </PrivateRoute>
           }
         />

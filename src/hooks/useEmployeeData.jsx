@@ -142,7 +142,6 @@ export const useEmployeeData = () => {
 
       try {
         setLoading(true);
-
         const response = await axios.get(
           `http://localhost:8000/display/?start=${start}&limit=${limit}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -224,7 +223,6 @@ export const useEmployeeData = () => {
 
 //handleIndividualEmployee
 const handleIndividualEmployee = async (id) => {
-  console.log("Fetching details for employee ID:", id);
   if (!token) {
     setError("Unauthorized — please login again.");
     localStorage.clear();
@@ -238,7 +236,6 @@ const handleIndividualEmployee = async (id) => {
     const response = await axios.get(`http://localhost:8000/display/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-console.log("Employee details fetched:", response.data);
     setSelectedEmployee(response.data);
     setModelOpen(true); 
     return response.data;
