@@ -11,7 +11,6 @@ const FileInput = () => {
     loading,
     error,
     errorFileLink,
-    parseExcel,
     totalRecords,
     getProcessedData,
     fetchDataFromBackend,
@@ -58,12 +57,12 @@ const FileInput = () => {
             className="hidden cursor-pointer"
           />
 
-          <span
+          {/* <span
             className="text-gray-600 text-sm italic truncate max-w-xs"
             title={fileName}
           >
             {fileName ? `📄 ${fileName}` : "No file selected"}
-          </span>
+          </span> */}
         </div>
 
         <button

@@ -10,6 +10,8 @@ import {
 } from "@mui/material";
 import axios from "axios";
 
+const backendApi = import.meta.env.VITE_BACKEND_API;
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +25,7 @@ export default function LoginPage() {
 
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"}/auth/login`,
+        `${backendApi}/auth/login`,
         { email, password }
       );
 

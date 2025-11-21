@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import EmployeeModal from "./EmployeModel.jsx";
 import { useEmployeeData } from "../hooks/useEmployeeData.jsx";
 
-const DataTable = ({ headers, rows, totalRecords, fetchPage }) => {
+const DataTable = ({ headers, totalRecords, fetchPage }) => {
   const {
     modelOpen,
     setModelOpen,
@@ -12,14 +12,15 @@ const DataTable = ({ headers, rows, totalRecords, fetchPage }) => {
     error,
     page,
     totalPages,
+    rows,
     handlePageChange,
     handleIndividualEmployee,
-    EXPORT_HEADERS,
   } = useEmployeeData(fetchPage, totalRecords);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMenu, setActiveMenu] = useState(null);
   const [sortState, setSortState] = useState({ header: null, direction: null });
+  
   const navigate = useNavigate();
 
   const sortableHeaders = ["Emp ID", "Emp Name", "Department", "Client"];
@@ -62,14 +63,12 @@ const DataTable = ({ headers, rows, totalRecords, fetchPage }) => {
 
   return (
     <div className="relative max-h-[500px] overflow-y-auto overflow-x-hidden border border-gray-300 rounded-lg shadow-sm">
-      {/* Error Banner */}
       {error && (
         <div className="p-2 text-center text-red-600 bg-red-50 border-b border-red-200">
           {error}
         </div>
       )}
 
-      {/* Search Bar */}
       <div className="p-3 border-b flex items-center gap-3 bg-gray-50 sticky top-0 z-20">
         <input
           type="text"
@@ -80,7 +79,6 @@ const DataTable = ({ headers, rows, totalRecords, fetchPage }) => {
         />
         <button
     onClick={() => {
-      // navigate and pass current data
       navigate("/client-summary", { state: { data: filteredAndSortedRows } });
     }}
     className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition"
@@ -213,9 +211,9 @@ const DataTable = ({ headers, rows, totalRecords, fetchPage }) => {
       {modelOpen && selectedEmployee && (
         <EmployeeModal
           employee={selectedEmployee}
-          headers={EXPORT_HEADERS}
           onClose={() => setModelOpen(false)}
           loading={loadingDetail}
+        
         />
       )}
     </div>

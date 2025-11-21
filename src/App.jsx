@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import FileInput from "./pages/FileInput";
 import LoginPage from "./pages/LoginPage";
 import PrivateRoute from "./component/PrivateRoute";
-import ClientSummary from "./pages/ClientSummary";
+import ClientSummaryPage from "./pages/ClientSummaryPage";
 
 function App() {
   return (
@@ -22,7 +22,7 @@ function App() {
           path="/client-summary"
           element={
             <PrivateRoute>
-              <ClientSummary />
+              <ClientSummaryPage />
             </PrivateRoute>
           }
         />

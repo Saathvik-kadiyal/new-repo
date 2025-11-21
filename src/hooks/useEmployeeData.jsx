@@ -1,8 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import * as XLSX from "xlsx";
 import axios from "axios";
 
-//Static Headers
+const backendApi = import.meta.env.VITE_BACKEND_API;
+
+// UI Headers
 export const UI_HEADERS = [
   "Emp ID",
   "Emp Name",
@@ -38,7 +40,7 @@ export const EXPORT_HEADERS = [
   "Prime Allowances",
 ];
 
-//Field Mapping
+// Field map
 const FIELD_MAP = {
   emp_id: "Emp ID",
   emp_name: "Emp Name",
@@ -48,7 +50,7 @@ const FIELD_MAP = {
   client: "Client",
 };
 
-//Hook
+// Hook
 export const useEmployeeData = () => {
   const [rows, setRows] = useState([]);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -58,10 +60,15 @@ export const useEmployeeData = () => {
   const [errorFileLink, setErrorFileLink] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [modelOpen, setModelOpen] = useState(false);
+  const [onSave, setOnSave] = useState(false);
+
+  // Pagination state
+  const [page, setPage] = useState(1); // Current page
+  const [totalPages, setTotalPages] = useState(1); // Total number of pages
 
   const token = localStorage.getItem("access_token");
 
-  //Helper to Reset All States
+  // Reset helper
   const resetState = useCallback(() => {
     setRows([]);
     setTotalRecords(0);
@@ -71,7 +78,75 @@ export const useEmployeeData = () => {
     setModelOpen(false);
   }, []);
 
-  // Upload & Process File
+  // Fetch processed paginated data
+  const getProcessedData = useCallback(
+    async (start = 0, limit = 10) => {
+      if (!token) {
+        setError("Not authenticated");
+        localStorage.clear();
+        window.location.href = "/login";
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        const response = await axios.get(
+          `${backendApi}/display/?start=${start}&limit=${limit}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const { total_records, data } = response.data;
+
+        const mappedRows = Array.isArray(data)
+          ? data.map((item) => {
+              const filtered = { id: item.id };
+              Object.entries(FIELD_MAP).forEach(([key, label]) => {
+                filtered[label] = item[key] ?? "";
+              });
+              return filtered;
+            })
+          : [];
+
+        setRows(mappedRows);
+        setTotalRecords(total_records || 0);
+
+        // Update totalPages based on totalRecords and limit
+        setTotalPages(Math.ceil(total_records / limit));
+      } catch (err) {
+        console.error("Data fetch error:", err);
+
+        if (err.response?.status === 404) {
+          // No data in DB yet
+          setRows([]);
+          setTotalRecords(0);
+          setError("");
+          return;
+        }
+
+        if (err.response?.status === 401) {
+          setError("Unauthorized — please login again.");
+          localStorage.clear();
+          window.location.href = "/login";
+        } else {
+          setError("Failed to fetch processed data.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token]
+  );
+
+  // Call on page load automatically
+  useEffect(() => {
+    
+    getProcessedData((page - 1) * 10, 10);  // Adjust for pagination logic
+    
+  }, [getProcessedData, page]);
+
+
+  // Upload file → process → refresh list
   const fetchDataFromBackend = useCallback(
     async (file) => {
       if (!token) {
@@ -88,7 +163,7 @@ export const useEmployeeData = () => {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await axios.post("http://localhost:8000/upload", formData, {
+        const response = await axios.post(`${backendApi}/upload`, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${token}`,
@@ -108,11 +183,9 @@ export const useEmployeeData = () => {
           alert("File uploaded successfully, but no details returned.");
         }
 
-        // Fetch processed data after upload
-        setTimeout(() => getProcessedData(0, 10), 1000);
+        setTimeout(() => getProcessedData((page - 1) * 10, 10), 1200);
       } catch (err) {
         console.error("Upload error:", err);
-        resetState();
 
         if (err.response?.status === 401) {
           setError("Unauthorized — please login again.");
@@ -127,61 +200,10 @@ export const useEmployeeData = () => {
         setLoading(false);
       }
     },
-    [token, resetState]
+    [token, resetState, getProcessedData, page]
   );
 
-  //Fetch Paginated Display Data
-  const getProcessedData = useCallback(
-    async (start = 0, limit = 10) => {
-      if (!token) {
-        setError("Not authenticated");
-        localStorage.clear();
-        window.location.href = "/login";
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const response = await axios.get(
-          `http://localhost:8000/display/?start=${start}&limit=${limit}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const { total_records, data } = response.data;
-
-        const mappedRows = Array.isArray(data)
-          ? data.map((item) => {
-              const filtered = { id: item.id };
-              Object.entries(FIELD_MAP).forEach(([key, label]) => {
-                filtered[label] = item[key] ?? "";
-              });
-              return filtered;
-            })
-          : [];
-
-        setRows(mappedRows);
-        setTotalRecords(total_records || 0);
-      } catch (err) {
-        console.error("Data fetch error:", err);
-        resetState();
-
-        if (err.response?.status === 404) {
-          setError("No data found yet.");
-        } else if (err.response?.status === 401) {
-          setError("Unauthorized — please login again.");
-          localStorage.clear();
-          window.location.href = "/login";
-        } else {
-          setError("Failed to fetch processed data.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    },
-    [token, resetState]
-  );
-
-  // Fetch Employee Detail
+  // Get employee detail
   const getEmployeeDetail = useCallback(
     async (id) => {
       if (!token) {
@@ -195,7 +217,7 @@ export const useEmployeeData = () => {
         setLoadingDetail(true);
         setError("");
 
-        const response = await axios.get(`http://localhost:8000/display/${id}`, {
+        const response = await axios.get(`${backendApi}/display/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -203,7 +225,8 @@ export const useEmployeeData = () => {
         setModelOpen(true);
         return response.data;
       } catch (err) {
-        console.error("Employee detail fetch error:", err);
+        console.error("Employee detail error:", err);
+
         if (err.response?.status === 404) {
           setError("Employee not found.");
         } else if (err.response?.status === 401) {
@@ -213,6 +236,7 @@ export const useEmployeeData = () => {
         } else {
           setError("Failed to fetch employee details.");
         }
+
         return null;
       } finally {
         setLoadingDetail(false);
@@ -221,43 +245,15 @@ export const useEmployeeData = () => {
     [token]
   );
 
-//handleIndividualEmployee
-const handleIndividualEmployee = async (id) => {
-  if (!token) {
-    setError("Unauthorized — please login again.");
-    localStorage.clear();
-    window.location.href = "/login";
-    return null;
-  }
-  try {
-    setLoadingDetail(true);
-    setError("");
 
-    const response = await axios.get(`http://localhost:8000/display/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setSelectedEmployee(response.data);
-    setModelOpen(true); 
-    return response.data;
-  } catch (err) {
-    console.error("Employee detail fetch error:", err);
-    if (err.response?.status === 404) {
-      setError("Employee not found.");
-    } else if (err.response?.status === 401) {
-      setError("Unauthorized — please login again.");
-      localStorage.clear();
-      window.location.href = "/login";
-    } else {
-      setError("Failed to fetch employee details.");
-    }
-    return null;
-  } finally {
-    setLoadingDetail(false);
-  }
-};
+  const handleIndividualEmployee = useCallback(
+    (id) => {
+      getEmployeeDetail(id);
+    },
+    [getEmployeeDetail]
+  );
 
-
-  //Download Excel
+  // Download Excel (template or data)
   const downloadExcel = useCallback(() => {
     const headers = EXPORT_HEADERS;
     const exportData =
@@ -278,51 +274,61 @@ const handleIndividualEmployee = async (id) => {
 
     const fileName =
       rows.length === 0 ? "Allowance_Template.xlsx" : "Allowance_Data.xlsx";
+
     XLSX.writeFile(wb, fileName);
   }, [rows]);
 
-  // Download Error Excel
-  const downloadErrorExcel = useCallback(async () => {
-    if (!errorFileLink) {
-      alert("No error file available.");
-      return;
-    }
+  // Download error file
+  const downloadErrorExcel = useCallback(
+    async () => {
+      if (!errorFileLink) {
+        alert("No error file available.");
+        return;
+      }
 
-    try {
-      const response = await axios.get(errorFileLink, {
-        responseType: "blob",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      try {
+        const response = await axios.get(errorFileLink, {
+          responseType: "blob",
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      const contentDisposition = response.headers["content-disposition"];
-      const fileNameMatch = contentDisposition?.match(/filename="?([^"]+)"?/);
-      const fileName = fileNameMatch ? fileNameMatch[1] : "Error_File.xlsx";
+        const contentDisposition = response.headers["content-disposition"];
+        const fileNameMatch = contentDisposition?.match(/filename="?([^"]+)"?/);
+        const fileName = fileNameMatch ? fileNameMatch[1] : "Error_File.xlsx";
 
-      const blob = new Blob([response.data], { type: response.data.type });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Error downloading Excel file:", err);
-      alert("Failed to download error Excel file. Please try again.");
-    }
-  }, [errorFileLink, token]);
+        const blob = new Blob([response.data], { type: response.data.type });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", fileName);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("Error downloading Excel:", err);
+        alert("Failed to download error Excel file. Please try again.");
+      }
+    },
+    [errorFileLink, token]
+  );
+
+  // Handle pagination changes
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+  };
 
   return {
     EXPORT_HEADERS,
     rows,
     totalRecords,
+    totalPages,
+    page,
     loading,
     loadingDetail,
     error,
     errorFileLink,
     selectedEmployee,
-    handleIndividualEmployee,
     modelOpen,
     setModelOpen,
     fetchDataFromBackend,
@@ -330,6 +336,10 @@ const handleIndividualEmployee = async (id) => {
     getEmployeeDetail,
     downloadExcel,
     downloadErrorExcel,
+    handleIndividualEmployee,
     resetState,
+    onSave,
+    setOnSave,
+    handlePageChange, 
   };
 };
