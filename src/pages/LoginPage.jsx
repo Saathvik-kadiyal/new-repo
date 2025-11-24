@@ -24,16 +24,18 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        `${backendApi}/auth/login`,
-        { email, password }
-      );
+      const response = await axios.post(`${backendApi}/auth/login`, {
+        email,
+        password,
+      });
 
-      const { access_token, refresh_token, token_type,  user_id } = response.data;
+      const { access_token, refresh_token, token_type, user_id } =
+        response.data;
 
       localStorage.setItem("access_token", access_token);
       localStorage.setItem("refresh_token", refresh_token);
-     localStorage.setItem("user_id", user_id);
+      localStorage.setItem("user_id", user_id);
+      localStorage.setItem("email", email);
       localStorage.setItem("isLoggedIn", "true");
 
       window.location.href = "/";
@@ -118,7 +120,11 @@ export default function LoginPage() {
               borderRadius: 2,
             }}
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : "Sign In"}
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Sign In"
+            )}
           </Button>
         </form>
       </Paper>

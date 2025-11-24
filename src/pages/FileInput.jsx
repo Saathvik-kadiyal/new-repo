@@ -1,7 +1,7 @@
 import { useState } from "react";
 import DataTable from "../component/DataTable.jsx";
 import { useEmployeeData, UI_HEADERS } from "../hooks/useEmployeeData.jsx";
-import { Auth } from "../utils/auth.js";
+
 
 const FileInput = () => {
   const [fileName, setFileName] = useState("");
@@ -27,14 +27,7 @@ const FileInput = () => {
 
   return (
     <div className="p-6 w-full">
-      <div className="mb-4">
-        <button
-          onClick={Auth.logout}
-          className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-        >
-          Logout
-        </button>
-      </div>
+      
 
       <h2 className="text-xl font-semibold mb-4 text-gray-800">
         Employee Data Upload

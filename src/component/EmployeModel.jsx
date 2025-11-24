@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { useEmployeeData } from "../hooks/useEmployeeData";
 const backendApi = import.meta.env.VITE_BACKEND_API;
 
-
 const EmployeeModal = ({ employee, onClose, loading }) => {
-const { setOnSave, getProcessedData, page } = useEmployeeData();
+  const { setOnSave, getProcessedData, page } = useEmployeeData();
   const editableKeys = [
     "shift_a_days",
     "shift_b_days",
@@ -20,11 +19,9 @@ const { setOnSave, getProcessedData, page } = useEmployeeData();
 
   if (!employee && !loading) return null;
 
-
   const displayEntries = Object.entries(editableData || {}).filter(
     ([key]) => !excludeKeys.includes(key)
   );
-
 
   const handleChange = (key, value) => {
     setEditableData((prev) => ({ ...prev, [key]: value }));
@@ -36,62 +33,62 @@ const { setOnSave, getProcessedData, page } = useEmployeeData();
     setError("");
   };
 
-const handleSave = async () => {
-  try {
-    setSaving(true);
-    setError("");
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError("");
 
-    const payload = {
-      shift_a_days: Number(editableData.shift_a_days) || 0,
-      shift_b_days: Number(editableData.shift_b_days) || 0,
-      shift_c_days: Number(editableData.shift_c_days) || 0,
-      prime_days: Number(editableData.prime_days) || 0,
-    };
+      const payload = {
+        shift_a_days: Number(editableData.shift_a_days) || 0,
+        shift_b_days: Number(editableData.shift_b_days) || 0,
+        shift_c_days: Number(editableData.shift_c_days) || 0,
+        prime_days: Number(editableData.prime_days) || 0,
+      };
 
-    const token = localStorage.getItem("access_token");
-    const response = await fetch(
-      `${backendApi}/display/shift/partial-update/${employee.id}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(
+        `${backendApi}/display/shift/partial-update/${employee.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update employee shift data");
+
+      const result = await response.json();
+
+      // Update local modal state
+      setEditableData((prev) => ({
+        ...prev,
+        shift_a_days: result.shift_a_days ?? prev.shift_a_days,
+        shift_b_days: result.shift_b_days ?? prev.shift_b_days,
+        shift_c_days: result.shift_c_days ?? prev.shift_c_days,
+        prime_days: result.prime_days ?? prev.prime_days,
+        total_days: result.total_days ?? prev.total_days,
+        total_days_allowance:
+          result.total_days_allowance ?? prev.total_days_allowance,
+      }));
+
+      setOnSave(true);
+      setIsEditing(false);
+      setError("");
+
+      // Refresh table data for current page
+      if (getProcessedData) {
+        await getProcessedData((page - 1) * 10, 10);
       }
-    );
-
-    if (!response.ok) throw new Error("Failed to update employee shift data");
-
-    const result = await response.json();
-
-    setEditableData((prev) => ({
-      ...prev,
-      shift_a_days: result.shift_a_days ?? prev.shift_a_days,
-      shift_b_days: result.shift_b_days ?? prev.shift_b_days,
-      shift_c_days: result.shift_c_days ?? prev.shift_c_days,
-      prime_days: result.prime_days ?? prev.prime_days,
-      total_days: result.total_days ?? prev.total_days,
-      total_days_allowance: result.total_days_allowance ?? prev.total_days_allowance,
-    }));
-
-    setOnSave(true);
-    setIsEditing(false);
-    setError("");
-
-    if (getProcessedData) {
-      await getProcessedData((page - 1) * 10, 10); 
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Something went wrong");
+    } finally {
+      setSaving(false);
     }
-
-  } catch (err) {
-    console.error(err);
-    setError(err.message || "Something went wrong");
-  } finally {
-    setSaving(false);
-  }
-};
-
-
+  };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
