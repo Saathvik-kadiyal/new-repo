@@ -13,7 +13,7 @@ export const UI_HEADERS = [
   "Emp Name",
   "Department",
   "Project Code",
-  "ACCOUNT MANAGER",
+  "Account Manager",
   "Client",
 ];
 
@@ -87,7 +87,7 @@ export const useEmployeeData = () => {
         const data = await fetchEmployees({ token, start, limit });
         const mappedRows = Array.isArray(data.data)
           ? data.data.map((item) => {
-              const filtered = { id: item.id };
+              const filtered = { emp_id: item.emp_id };
               Object.entries(FIELD_MAP).forEach(([key, label]) => {
                 filtered[label] = item[key] ?? "";
               });
@@ -113,7 +113,6 @@ export const useEmployeeData = () => {
     []
   );
 
-  // Search fetch (all matching results)
   const debouncedFetch = useCallback(
     debounce(async (query, by) => {
       if (!token) return;
@@ -133,7 +132,7 @@ export const useEmployeeData = () => {
         });
         const mappedRows = Array.isArray(data.data)
           ? data.data.map((item) => {
-              const filtered = { id: item.id };
+              const filtered = { emp_id: item.emp_id };
               Object.entries(FIELD_MAP).forEach(([key, label]) => {
                 filtered[label] = item[key] ?? "";
               });
@@ -165,24 +164,27 @@ export const useEmployeeData = () => {
     setDisplayRows(rows.slice(start, start + 10));
   }, [rows, page]);
 
-  const fetchDataFromBackend = useCallback(
-    async (file) => {
-      if (!token) return;
-      resetState();
-      setLoading(true);
-      try {
-        const data = await uploadFile(token, file);
-        if (data.download_link) setErrorFileLink(data.download_link);
-        setTimeout(() => getProcessedData((page - 1) * 10, 10), 1200);
-      } catch (err) {
-        console.error(err);
-        setError("File upload failed");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [token, resetState, page, getProcessedData]
-  );
+const fetchDataFromBackend = useCallback(
+  async (file) => {
+    if (!token) return;
+    resetState();
+    setLoading(true);
+
+    try {
+      const data = await uploadFile(token, file);
+      if (data.download_link) setErrorFileLink(data.download_link);
+      setTimeout(() => getProcessedData((page - 1) * 10, 10), 1200);
+
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "An unknown error occurred during file upload");
+    } finally {
+      setLoading(false);
+    }
+  },
+  [token, resetState, page, getProcessedData]
+);
+
 
   const getEmployeeDetailHandler = useCallback(
     async (id) => {
@@ -249,10 +251,10 @@ export const useEmployeeData = () => {
     setPage(newPage);
   }, []);
 
-  // Initial fetch
-  useEffect(() => {
-    getProcessedData((page - 1) * 10, 10);
-  }, [page]);
+useEffect(() => {
+  getProcessedData(0, 10);
+}, []); 
+
 
   return {
     EXPORT_HEADERS,

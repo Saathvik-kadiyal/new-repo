@@ -1,4 +1,15 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { DataGrid } from "@mui/x-data-grid";
+import {
+  Menu,
+  MenuItem,
+  Select,
+  TextField,
+  Button,
+  Box,
+  Typography,
+} from "@mui/material";
+
 import EmployeeModal from "./EmployeModel.jsx";
 import { useEmployeeData } from "../hooks/useEmployeeData.jsx";
 
@@ -15,188 +26,146 @@ const DataTable = ({ headers }) => {
     debouncedFetch,
     handlePageChange,
     handleIndividualEmployee,
-    getProcessedData
+    getProcessedData,
   } = useEmployeeData();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchBy, setSearchBy] = useState("Emp ID");
-  const [activeMenu, setActiveMenu] = useState(null);
-  const [sortState, setSortState] = useState({ header: null, direction: null });
+  const firstRender = useRef(true);
 
-  const sortableHeaders = ["Emp ID", "Emp Name", "Department", "Client"];
+  // Convert rows to DataGrid format
+  const columns = [
+    ...headers.map((header) => ({
+      field: header,
+      headerName: header,
+      flex: 1,
+      sortable: true,
+      disableColumnMenu: true,
+    })),
+    {
+      field: "actions",
+      headerName: "",
+      sortable: false,
+      flex: 0.5,
+      renderCell: (params) => (
+        <Button
+          variant="contained"
+          size="small"
+          onClick={() => {
+            handleIndividualEmployee(params.row["Emp ID"]);
+            setModelOpen(true);
+          }}
+        >
+          View
+        </Button>
+      ),cellClassName: "no-right-border",
+    },
+  ];
 
-  const filteredAndSortedRows = useMemo(() => {
-    let filtered = rows;
+  const dataRows = rows.map((row, i) => ({
+    id: row.id || i,
+    ...row,
+  }));
 
-    if (sortState.header && sortState.direction && sortState.direction !== "reset") {
-      filtered = [...filtered].sort((a, b) => {
-        const aVal = ((a[sortState.header] || "") + "").toLowerCase().trim();
-        const bVal = ((b[sortState.header] || "") + "").toLowerCase().trim();
-        if (sortState.direction === "asc") return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-        if (sortState.direction === "desc") return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-        return 0;
-      });
+  // Search trigger
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
     }
 
-    return filtered;
-  }, [rows, sortState]);
-
-  const handleSort = (header, direction) => {
-    setSortState({ header, direction });
-    setActiveMenu(null);
-  };
-
-
-  useEffect(() => {
-    if (searchQuery.trim().length > 0) {
-      debouncedFetch(searchQuery, searchBy, page - 1); // send page for search pagination
-    } else {
-      getProcessedData((page - 1) * 10, 10); // normal paginated fetch
+    if (searchQuery.trim().length > 3) {
+      debouncedFetch(searchQuery, searchBy, page - 1);
+    } else if (searchQuery.trim().length === 0) {
+      getProcessedData((page - 1) * 10, 10);
     }
   }, [searchQuery, searchBy, page]);
 
   return (
-    <div className="relative flex flex-col felx-1 overflow-hidden text-ellipsis whitespace-nowrap
- border border-gray-300 rounded-lg shadow-sm">
-      {error && (
-        <div className="p-2 text-center text-red-600 bg-red-50 border-b border-red-200">{error}</div>
-      )}
-
-      {/* Search section */}
-      <div className="p-3 border-b flex items-center gap-3 bg-gray-50 sticky top-0 z-20">
-        <select
+    <Box
+      sx={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Search */}
+      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+        <Select
+          size="small"
           value={searchBy}
           onChange={(e) => setSearchBy(e.target.value)}
-          className="px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-white"
         >
-          <option value="Emp ID">Emp ID</option>
-          <option value="Account Manager">Account Manager</option>
-        </select>
-        <input
-          type="text"
+          <MenuItem value="Emp ID">Emp ID</MenuItem>
+          <MenuItem value="Account Manager">Account Manager</MenuItem>
+        </Select>
+
+        <TextField
+          size="small"
           placeholder={`Search by ${searchBy}...`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-1/3 min-w-[200px] px-3 py-2 border rounded-r-md focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
+          sx={{ width: 300 }}
         />
-      </div>
+      </Box>
 
-      {/* Table */}
-      <table className="w-full border-collapse text-sm text-gray-800">
-        <thead className="bg-gray-100 sticky top-10 z-10">
-          <tr>
-            {headers.map((header, index) => (
-              <th
-                key={index}
-                className="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700 whitespace-nowrap relative"
-              >
-                <div className="flex justify-between items-center">
-                  <span>{header}</span>
+      <Box
+        sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}
+      >
+        <DataGrid
+          key={{}}
+          rows={dataRows}
+          columns={columns}
+          disableRowSelectionOnClick
+          disableColumnReorder
+          pagination={false}
+          hideFooter
+          autoHeight={false}
+          onRowClick={(params) => {
+            console.log(params.row["Emp ID"]);
+          }}
+          sx={{
+            flex: 1,
+            border: "none",
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: "transparent",
+              fontWeight: 600,
+            },
+            "& .MuiDataGrid-cell": {
+              borderBottom: "none",
+            },
+          }}
+        />
+      </Box>
 
-                  {sortableHeaders.includes(header) && (
-                    <div className="relative inline-block">
-                      <button
-                        onClick={() =>
-                          setActiveMenu(activeMenu === header ? null : header)
-                        }
-                        className="px-1 py-0.5 text-gray-500 hover:text-gray-700 font-bold"
-                      >
-                        ⋮
-                      </button>
-
-                      {activeMenu === header && (
-                        <div className="absolute right-0 mt-1 w-24 bg-white border border-gray-300 rounded shadow-lg z-30">
-                          <ul className="text-sm">
-                            <li
-                              className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
-                              onClick={() => handleSort(header, "asc")}
-                            >
-                              A-Z
-                            </li>
-                            <li
-                              className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
-                              onClick={() => handleSort(header, "desc")}
-                            >
-                              Z-A
-                            </li>
-                            <li
-                              className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
-                              onClick={() => handleSort(header, "reset")}
-                            >
-                              Reset
-                            </li>
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-
-        <tbody>
-          {filteredAndSortedRows?.length > 0 ? (
-            filteredAndSortedRows.map((row, i) => (
-              <tr
-                key={row.id || i}
-                onClick={() => {
-                  handleIndividualEmployee(row.id);
-                  setModelOpen(true);
-                }}
-                className="cursor-pointer transition-colors duration-150 hover:bg-gray-50"
-              >
-                {headers.map((header) => (
-                  <td
-                    key={header}
-                    className="border border-gray-200 px-4 py-2 text-gray-700 truncate"
-                    title={row[header]}
-                  >
-                    {row[header] || ""}
-                  </td>
-                ))}
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td
-                colSpan={headers.length}
-                className="text-center py-4 text-gray-500 italic"
-              >
-                {searchQuery
-                  ? `No matching records found for "${searchQuery}"`
-                  : "No data available"}
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-
-      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-end px-4 py-2 border-t bg-gray-50 sticky bottom-0">
-          <button
-            onClick={() => handlePageChange(page - 1)}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            p: 1,
+          }}
+        >
+          <Button
             disabled={page === 1}
-            className="px-2 py-1 text-sm text-gray-700 border rounded-md disabled:opacity-50 hover:bg-gray-100"
+            onClick={() => handlePageChange(page - 1)}
           >
             Prev
-          </button>
-          <span className="text-sm text-gray-600 mx-3">
-            Page {page} of {totalPages || 1}
-          </span>
-          <button
-            onClick={() => handlePageChange(page + 1)}
+          </Button>
+          <Typography sx={{ px: 2 }}>
+            Page {page} of {totalPages}
+          </Typography>
+          <Button
             disabled={page >= totalPages}
-            className="px-2 py-1 text-sm text-gray-700 border rounded-md disabled:opacity-50 hover:bg-gray-100"
+            onClick={() => handlePageChange(page + 1)}
           >
             Next
-          </button>
-        </div>
+          </Button>
+        </Box>
       )}
 
-      {/* Modal */}
       {modelOpen && selectedEmployee && (
         <EmployeeModal
           employee={selectedEmployee}
@@ -204,7 +173,7 @@ const DataTable = ({ headers }) => {
           loading={loadingDetail}
         />
       )}
-    </div>
+    </Box>
   );
 };
 

@@ -1,72 +1,45 @@
 import React, { useState, useEffect } from "react";
 import { useEmployeeData } from "../hooks/useEmployeeData";
-const backendApi = import.meta.env.VITE_BACKEND_API;
+import { updateEmployeeShift } from "../utils/helper";
+
+const SHIFT_KEYS = ["A", "B", "C", "PRIME"];
+const UI_LABEL = {
+  A: "Shift A",
+  B: "Shift B",
+  C: "Shift C",
+  PRIME: "Prime",
+};
 
 const EmployeeModal = ({ employee, onClose, loading }) => {
-  const { setOnSave, getProcessedData, page } = useEmployeeData();
-
-  const editableKeys = ["shift_a_days", "shift_b_days", "shift_c_days", "prime_days"];
-  const excludeKeys = ["id", "file_id", "shift_mappings"];
-
+  const { setOnSave } = useEmployeeData();
   const [isEditing, setIsEditing] = useState(false);
-  const [editableData, setEditableData] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  // Map API shift_mappings to editable keys
-  const mapShiftsToKeys = (emp) => {
-    const shifts = {
-      shift_a_days: 0,
-      shift_b_days: 0,
-      shift_c_days: 0,
-      prime_days: 0,
-    };
-
-    if (emp?.shift_mappings?.length) {
-      emp.shift_mappings.forEach(({ shift_type, days }) => {
-        switch (shift_type.toUpperCase()) {
-          case "A":
-          case "SHIFT A":
-            shifts.shift_a_days = days;
-            break;
-          case "B":
-          case "SHIFT B":
-            shifts.shift_b_days = days;
-            break;
-          case "C":
-          case "SHIFT C":
-            shifts.shift_c_days = days;
-            break;
-          case "PRIME":
-            shifts.prime_days = days;
-            break;
-          default:
-            break;
-        }
-      });
-    }
-
-    return { ...emp, ...shifts };
-  };
+  const [activeMonthIndex, setActiveMonthIndex] = useState(0);
+  const [data, setData] = useState(null);
 
   useEffect(() => {
-    if (employee) {
-      setEditableData(mapShiftsToKeys(employee));
-    }
+    if (employee) setData(employee);
   }, [employee]);
 
-  if (!employee && !loading) return null;
+  if ((!employee && !loading) || !data) return null;
 
-  const displayEntries = Object.entries(editableData || {}).filter(
-    ([key]) => !excludeKeys.includes(key)
-  );
+  const months = data.months || [];
+  const activeMonth = months[activeMonthIndex] || {};
 
-  const handleChange = (key, value) => {
-    setEditableData((prev) => ({ ...prev, [key]: value }));
+  const updateShift = (key, value) => {
+    setData((prev) => {
+      const updatedMonths = [...prev.months];
+      updatedMonths[activeMonthIndex] = {
+        ...updatedMonths[activeMonthIndex],
+        [key]: value,
+      };
+      return { ...prev, months: updatedMonths };
+    });
   };
 
-  const handleCancel = () => {
-    setEditableData(mapShiftsToKeys(employee));
+  const resetChanges = () => {
+    setData(employee);
     setIsEditing(false);
     setError("");
   };
@@ -76,147 +49,149 @@ const EmployeeModal = ({ employee, onClose, loading }) => {
       setSaving(true);
       setError("");
 
+      const token = localStorage.getItem("access_token");
+
       const payload = {
-        shift_mappings: [
-          { shift_type: "SHIFT A", days: Number(editableData.shift_a_days) || 0 },
-          { shift_type: "SHIFT B", days: Number(editableData.shift_b_days) || 0 },
-          { shift_type: "SHIFT C", days: Number(editableData.shift_c_days) || 0 },
-          { shift_type: "PRIME", days: Number(editableData.prime_days) || 0 },
-        ],
+        shift_a: String(activeMonth.A || "0"),
+        shift_b: String(activeMonth.B || "0"),
+        shift_c: String(activeMonth.C || "0"),
+        prime: String(activeMonth.PRIME || "0"),
       };
 
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${backendApi}/display/shift/partial-update/${employee.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const result = await updateEmployeeShift(employee.emp_id, activeMonth.payroll_month, payload, token);
 
-      if (!response.ok) throw new Error("Failed to update employee shift data");
-      const result = await response.json();
-
-      // Update local modal state
-      setEditableData(mapShiftsToKeys(result));
-
-      setOnSave(true);
+      const updatedMonths = [...data.months];
+      const updated = { ...updatedMonths[activeMonthIndex] };
+      result.shift_details.forEach((item) => {
+        updated[item.shift] = item.days;
+      });
+      updatedMonths[activeMonthIndex] = updated;
+      setData((prev) => ({ ...prev, months: updatedMonths }));
       setIsEditing(false);
-      setError("");
-
-      // Refresh table data for current page
-      if (getProcessedData) {
-        await getProcessedData((page - 1) * 10, 10);
-      }
+      setOnSave(true);
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Something went wrong");
+      setError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
+  const excludeMonthKeys = ["id", "created_at", "updated_at"];
+
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-lg w-[650px] max-h-[85vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center px-5 py-3 border-b">
-          <h2 className="text-lg font-semibold">
-            {isEditing ? "Edit Employee Details" : "Employee Details"}
-          </h2>
-          <button
-            onClick={() => {
-              if (isEditing) handleCancel();
-              onClose();
-            }}
-            className="text-gray-500 hover:text-gray-700 text-xl"
-          >
-            ✖
-          </button>
+   <div
+  className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+  onClick={() => {
+    resetChanges();
+    onClose();
+  }}
+>
+  <div
+    className="bg-white rounded-2xl shadow-2xl w-full max-w-[900px] max-h-[85vh] overflow-y-auto scrollbar-hidden animate-fadeIn"
+    onClick={(e) => e.stopPropagation()}
+  >
+    <div className="flex justify-end items-center px-6 py-4 rounded-t-2xl ">
+      <button
+        onClick={() => {
+          resetChanges();
+          onClose();
+        }}
+        className="text-gray-500 hover:text-red-500 transition text-xl"
+      >
+        ✖
+      </button>
+    </div>
+
+    <div className="flex border-b px-6 bg-white sticky top-0 z-10">
+      {months.map((m, i) => (
+        <button
+          key={i}
+          onClick={() => setActiveMonthIndex(i)}
+          className={`px-4 py-3 text-sm font-medium transition border-b-2 cursor-pointer
+            ${
+              activeMonthIndex === i
+                ? "text-blue-600 border-blue-600"
+                : "text-gray-500 border-transparent hover:text-gray-700"
+            }`}
+        >
+          {m.payroll_month}
+        </button>
+      ))}
+    </div>
+
+    {/* Content */}
+    <div className="p-5 space-y-4">
+      {/* Employee Info */}
+      <div className="grid grid-cols-2 gap-4 px-6">
+        <div className="border p-3 bg-gray-50 rounded-lg shadow-sm">
+          <p className="text-xs font-semibold text-gray-600">Employee ID</p>
+          <p className="mt-1 text-sm text-gray-800">{data.emp_id}</p>
         </div>
+        <div className="border p-3 bg-gray-50 rounded-lg shadow-sm">
+          <p className="text-xs font-semibold text-gray-600">Employee Name</p>
+          <p className="mt-1 text-sm text-gray-800">{data.emp_name}</p>
+        </div>
+      </div>
 
-        {/* Loading */}
-        {loading ? (
-          <div className="p-8 text-center text-gray-500 text-base">
-            Loading employee details...
-          </div>
-        ) : (
-          <>
-            {/* Body */}
-            <div className="p-4 grid grid-cols-2 gap-3">
-              {displayEntries.map(([key, value]) => {
-                const isFieldEditable = editableKeys.includes(key);
-
-                return (
-                  <div
-                    key={key}
-                    className="flex flex-col border border-gray-100 rounded-md p-2 bg-gray-50"
-                  >
-                    <span className="text-sm font-medium text-gray-700 capitalize">
-                      {key.replace(/_/g, " ")}
-                    </span>
-
-                    {isEditing && isFieldEditable ? (
-                      <input
-                        type="number"
-                        value={value || ""}
-                        onChange={(e) => handleChange(key, Number(e.target.value))}
-                        min="0"
-                        className="border border-gray-300 rounded-md px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                      />
-                    ) : (
-                      <span
-                        className={`text-gray-800 text-sm mt-1 ${
-                          isEditing && !isFieldEditable ? "opacity-70 cursor-not-allowed" : ""
-                        }`}
-                      >
-                        {String(value ?? "")}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Error */}
-            {error && <div className="px-5 pb-2 text-sm text-red-600">{error}</div>}
-
-            {/* Footer */}
-            <div className="flex justify-end gap-3 px-5 py-3 border-t">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={handleCancel}
-                    disabled={saving}
-                    className="px-4 py-2 text-gray-700 border rounded hover:bg-gray-100 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {saving ? "Saving..." : "Save"}
-                  </button>
-                </>
+      {/* Month Details */}
+      <div className="grid grid-cols-3 gap-4 px-6 py-4">
+        {Object.entries(activeMonth)
+          .filter(([k]) => !excludeMonthKeys.includes(k))
+          .map(([k, v]) => (
+            <div
+              key={k}
+              className="p-3 border bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition"
+            >
+              <p className="text-sm font-semibold text-gray-700">
+                {k.replace(/_/g, " ")}
+              </p>
+              {isEditing && SHIFT_KEYS.includes(k) ? (
+                <input
+                  type="number"
+                  min="0"
+                  max="22"
+                  className="mt-2 border rounded-lg px-3 py-2 w-full text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={v ?? ""}
+                  onChange={(e) => updateShift(k, e.target.value)}
+                />
               ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                >
-                  Edit
-                </button>
+                <p className="mt-2 text-gray-800">{String(v)}</p>
               )}
             </div>
+          ))}
+      </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="flex justify-end gap-3 pt-4 px-6">
+        {isEditing ? (
+          <>
+            <button
+              className="px-4 py-2 border rounded-lg hover:bg-gray-100 transition"
+              onClick={resetChanges}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition"
+              disabled={saving}
+              onClick={handleSave}
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
           </>
+        ) : (
+          <button
+            className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
+            onClick={() => setIsEditing(true)}
+          >
+            Edit
+          </button>
         )}
       </div>
     </div>
+  </div>
+</div>
+
   );
 };
 

@@ -34,15 +34,14 @@ export const fetchEmployees = async ({
   const response = await axios.get(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
-
   return response.data;
 };
 
 // Fetch individual employee details
-export const fetchEmployeeDetail = async (token, id) => {
+export const fetchEmployeeDetail = async (token, emp_id) => {
   if (!token) throw new Error("Not authenticated");
 
-  const response = await axios.get(`${backendApi}/display/${id}`, {
+  const response = await axios.get(`${backendApi}/display/${emp_id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -52,29 +51,72 @@ export const fetchEmployeeDetail = async (token, id) => {
 // Upload file to backend
 export const uploadFile = async (token, file) => {
   if (!token) throw new Error("Not authenticated");
-
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await axios.post(`${backendApi}/upload`, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  try {
+    const response = await axios.post(`${backendApi}/upload`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
 
-  return response.data;
+  } catch (err) {
+    if (err.response) {
+      const { status, data } = err.response;
+      if ((status === 400 || status === 422) && data?.detail) {
+        throw new Error(data.detail);
+      }
+      if (status === 500 && data?.detail) {
+        throw new Error(data.detail);
+      }
+      if (data?.message) {
+        throw new Error(data.message);
+      }
+      throw new Error(data?.detail || "Something went wrong while uploading");
+    }
+    if (err.request) {
+      throw new Error("No response from server. Please try again later.");
+    }
+    throw new Error(err.message || "File upload failed");
+  }
 };
 
-// Partial update employee (shift data)
-export const updateEmployeeShift = async (token, id, payload) => {
+
+export const updateEmployeeShift = async (employeeId, payrollMonth, payload, token) => {
   if (!token) throw new Error("Not authenticated");
 
-  const response = await axios.patch(
-    `${backendApi}/display/shift/partial-update/${id}`,
-    payload,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  try {
+    const response = await axios.put(
+      `${backendApi}/display/shift/update`,
+      payload,
+      {
+        params: {
+          emp_id: employeeId,
+          payroll_month: payrollMonth,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-  return response.data;
+    return response.data;
+  } catch (err) {
+    if (err.response) {
+      const { status, data } = err.response;
+
+      if (status === 400 && data?.detail) throw new Error(data.detail);
+      if (status === 500 && data?.detail) throw new Error(data.detail);
+
+      throw new Error(data?.detail || "Something went wrong while updating shift");
+    } else if (err.request) {
+      throw new Error("No response from server. Please try again later.");
+    } else {
+      throw new Error(err.message);
+    }
+  }
 };

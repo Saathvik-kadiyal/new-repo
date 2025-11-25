@@ -2,6 +2,7 @@ import { useState } from "react";
 import { User, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Auth } from "../utils/auth";
+import { LogOut } from "lucide-react"
 
 const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -36,14 +37,15 @@ const Navbar = () => {
 
         {/* Dropdown menu */}
         {dropdownOpen && (
-          <div className="absolute right-0 mt-2 z-50">
-              <button
-                onClick={Auth.logout}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-              >
-                Logout
-              </button>
-          </div>
+          <div className="absolute right-4 mt-2 z-50 px-4 py-3 bg-white">
+  <button
+    onClick={Auth.logout}
+    className="flex items-center gap-2 text-neutral-700 px-4 py-2 cursor-pointer transition-all duration-200"
+  >
+    <LogOut size={18} />
+    <span className="font-medium text-sm">Logout</span>
+  </button>
+</div>
         )}
       </div>
     </header>
