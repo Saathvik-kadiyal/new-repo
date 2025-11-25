@@ -21,11 +21,14 @@ export const fetchEmployees = async ({
 }) => {
   if (!token) throw new Error("Not authenticated");
 
-  let url = `${backendApi}/display/`;
+  let url = `${backendApi}/display/?start=${start}&limit=${limit}`;
 
-  if (searchBy && searchQuery) {
-    const apiField = searchBy === "Emp ID" ? "emp_id" : "account_manager";
-    url = `${backendApi}/${apiField}/${encodeURIComponent(searchQuery)}`;
+  if (searchBy && searchQuery.trim().length > 0) {
+    const params = new URLSearchParams();
+    if (searchBy === "Emp ID") params.append("emp_id", searchQuery);
+    if (searchBy === "Account Manager") params.append("account_manager", searchQuery);
+
+    url = `${backendApi}/employee-details/Search?${params.toString()}`;
   }
 
   const response = await axios.get(url, {

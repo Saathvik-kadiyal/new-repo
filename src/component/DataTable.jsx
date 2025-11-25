@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import EmployeeModal from "./EmployeModel.jsx";
 import { useEmployeeData } from "../hooks/useEmployeeData.jsx";
 
-const DataTable = ({ headers, totalRecords, fetchPage }) => {
+const DataTable = ({ headers }) => {
   const {
     modelOpen,
     setModelOpen,
@@ -16,117 +15,70 @@ const DataTable = ({ headers, totalRecords, fetchPage }) => {
     debouncedFetch,
     handlePageChange,
     handleIndividualEmployee,
-    getProcessedData,
-  } = useEmployeeData(fetchPage, totalRecords);
+    getProcessedData
+  } = useEmployeeData();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchBy, setSearchBy] = useState("Emp ID");
   const [activeMenu, setActiveMenu] = useState(null);
   const [sortState, setSortState] = useState({ header: null, direction: null });
-  const [searchBy, setSearchBy] = useState("Emp ID");
-
-  const navigate = useNavigate();
 
   const sortableHeaders = ["Emp ID", "Emp Name", "Department", "Client"];
 
   const filteredAndSortedRows = useMemo(() => {
     let filtered = rows;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      filtered = rows.filter((row) =>
-        headers.some((header) =>
-          (row[header] || "").toString().toLowerCase().includes(q)
-        )
-      );
-    }
 
-    if (
-      sortState.header &&
-      sortState.direction &&
-      sortState.direction !== "reset"
-    ) {
+    if (sortState.header && sortState.direction && sortState.direction !== "reset") {
       filtered = [...filtered].sort((a, b) => {
         const aVal = ((a[sortState.header] || "") + "").toLowerCase().trim();
         const bVal = ((b[sortState.header] || "") + "").toLowerCase().trim();
-        if (sortState.direction === "asc")
-          return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-        if (sortState.direction === "desc")
-          return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+        if (sortState.direction === "asc") return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        if (sortState.direction === "desc") return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
         return 0;
       });
     }
 
     return filtered;
-  }, [rows, searchQuery, sortState, headers]);
+  }, [rows, sortState]);
 
-  // Sort change
   const handleSort = (header, direction) => {
     setSortState({ header, direction });
     setActiveMenu(null);
   };
 
+
   useEffect(() => {
-    if (searchQuery.trim()) {
-      debouncedFetch(searchQuery, searchBy);
+    if (searchQuery.trim().length > 0) {
+      debouncedFetch(searchQuery, searchBy, page - 1); // send page for search pagination
     } else {
-      getProcessedData((page - 1) * 10, 10);
+      getProcessedData((page - 1) * 10, 10); // normal paginated fetch
     }
   }, [searchQuery, searchBy, page]);
 
   return (
-    <div className="relative max-h-[500px] overflow-y-auto overflow-x-hidden border border-gray-300 rounded-lg shadow-sm">
+    <div className="relative flex flex-col felx-1 overflow-hidden text-ellipsis whitespace-nowrap
+ border border-gray-300 rounded-lg shadow-sm">
       {error && (
-        <div className="p-2 text-center text-red-600 bg-red-50 border-b border-red-200">
-          {error}
-        </div>
+        <div className="p-2 text-center text-red-600 bg-red-50 border-b border-red-200">{error}</div>
       )}
 
+      {/* Search section */}
       <div className="p-3 border-b flex items-center gap-3 bg-gray-50 sticky top-0 z-20">
-        <div className="flex items-center gap-2 p-3 border-b bg-gray-50 sticky top-0 z-20">
-          {/* Search by dropdown */}
-          <div className="relative">
-            <select
-              value={searchBy}
-              onChange={(e) => setSearchBy(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-white"
-            >
-              <option value="Emp ID">Emp ID</option>
-              <option value="Account Manager">Account Manager</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-              <svg
-                className="w-4 h-4 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </div>
-          </div>
-
-          {/* Search input */}
-          <input
-            type="text"
-            placeholder={`Search by ${searchBy}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-1/3 min-w-[200px] px-3 py-2 border border-gray-300 rounded-r-md focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
-          />
-        </div>
-
-        {/* <button
-    onClick={() => {
-      navigate("/client-summary", { state: { data: filteredAndSortedRows } });
-    }}
-    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition"
-  >
-    View Client Summary
-  </button> */}
+        <select
+          value={searchBy}
+          onChange={(e) => setSearchBy(e.target.value)}
+          className="px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-white"
+        >
+          <option value="Emp ID">Emp ID</option>
+          <option value="Account Manager">Account Manager</option>
+        </select>
+        <input
+          type="text"
+          placeholder={`Search by ${searchBy}...`}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-1/3 min-w-[200px] px-3 py-2 border rounded-r-md focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm"
+        />
       </div>
 
       {/* Table */}
@@ -141,7 +93,6 @@ const DataTable = ({ headers, totalRecords, fetchPage }) => {
                 <div className="flex justify-between items-center">
                   <span>{header}</span>
 
-                  {/* Sort Menu */}
                   {sortableHeaders.includes(header) && (
                     <div className="relative inline-block">
                       <button
@@ -194,11 +145,7 @@ const DataTable = ({ headers, totalRecords, fetchPage }) => {
                   handleIndividualEmployee(row.id);
                   setModelOpen(true);
                 }}
-                className={`cursor-pointer transition-colors duration-150 ${
-                  row._isMatch
-                    ? "bg-green-100 border-l-4 border-green-500"
-                    : "hover:bg-gray-50"
-                }`}
+                className="cursor-pointer transition-colors duration-150 hover:bg-gray-50"
               >
                 {headers.map((header) => (
                   <td
@@ -226,9 +173,9 @@ const DataTable = ({ headers, totalRecords, fetchPage }) => {
         </tbody>
       </table>
 
-      {/* Pagination (unchanged) */}
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center px-4 py-2 border-t bg-gray-50 sticky bottom-0">
+        <div className="flex items-center justify-end px-4 py-2 border-t bg-gray-50 sticky bottom-0">
           <button
             onClick={() => handlePageChange(page - 1)}
             disabled={page === 1}

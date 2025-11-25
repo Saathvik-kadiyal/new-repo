@@ -13,45 +13,45 @@ const Sidebar = () => {
 
   return (
     <nav
-      className={`h-screen bg-gray-800 text-white p-5 pt-8 border-r border-neutral-700 overflow-hidden transition-all duration-300`}
-      style={{ width: open ? "16rem" : "4.5rem" }}
+      className="h-screen bg-white shadow-md transition-all duration-300 p-4 overflow-hidden"
+      style={{ width: open ? "10rem" : "4.5rem" }}
     >
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <h2
-          className={`text-xl font-bold whitespace-nowrap transition-opacity duration-300 ${
-            open ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          My App
-        </h2>
-
+      {/* Toggle Button */}
+      <div className="flex justify-end mb-6">
         <button
-          onClick={() => setOpen((prev) => !prev)}
-          className="p-2 bg-gray-600 rounded-full hover:bg-gray-500"
+          onClick={() => setOpen(prev => !prev)}
+          className="p-2 rounded-full shadow hover:bg-gray-200 transition"
         >
-          {open ? <ChevronLeft /> : <ChevronRight />}
+          {open ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
         </button>
       </div>
-      <ul className="flex flex-col gap-2">
+
+      {/* Menu */}
+      <ul className="flex flex-col gap-1">
         {menuItems.map((item, index) => (
           <li key={index}>
             <NavLink
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 p-2 rounded hover:bg-gray-700 transition-colors duration-200
-                ${isActive ? "bg-gray-700 font-semibold" : "text-gray-200"}`
+                `flex items-center gap-3 px-3 py-2 rounded-lg transition
+                ${
+                  isActive
+                    ? "bg-blue-500 text-white shadow-sm"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`
               }
             >
-              {item.icon}
+              <span className="flex justify-center w-6">{item.icon}</span>
 
-              {open && (
-                <span
-                  className="whitespace-nowrap transition-opacity duration-300"
-                >
-                  {item.label}
-                </span>
-              )}
+              <span
+                className="whitespace-nowrap transition-all duration-300 text-[10px] font-medium"
+                style={{
+                  visibility: open ? "visible" : "hidden",
+                  width: open ? "auto" : 0,
+                }}
+              >
+                {item.label}
+              </span>
             </NavLink>
           </li>
         ))}

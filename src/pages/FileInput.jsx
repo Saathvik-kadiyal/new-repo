@@ -26,8 +26,7 @@ const FileInput = () => {
   };
 
   return (
-    <div className="p-6 w-full">
-      
+    <div className=" w-full justify-center">
 
       <h2 className="text-xl font-semibold mb-4 text-gray-800">
         Employee Data Upload
@@ -39,7 +38,7 @@ const FileInput = () => {
             htmlFor="file-upload"
             className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md cursor-pointer hover:bg-blue-700 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 transition-all duration-150"
           >
-            Upload Excel / CSV
+            Upload Excel
           </label>
 
           <input
