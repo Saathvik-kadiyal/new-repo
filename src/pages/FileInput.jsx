@@ -3,6 +3,7 @@ import DataTable from "../component/DataTable.jsx";
 import { useEmployeeData, UI_HEADERS } from "../hooks/useEmployeeData.jsx";
 
 const FileInput = () => {
+  const [searchState, setSearchState] = useState({ query: "", searchBy: "" });
   const [fileName, setFileName] = useState("");
   const [errorModalOpen, setErrorModalOpen] = useState(false);
 
@@ -52,16 +53,19 @@ const FileInput = () => {
         </div>
 
         <button
-          onClick={downloadExcel}
-          disabled={loading}
-          className={`cursor-pointer inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg shadow-md transition-all duration-150 ${
-            loading
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white text-[12px] focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1"
-          }`}
-        >
-          {rows.length === 0 ? "Download Template" : "Download Data"}
-        </button>
+  onClick={() => downloadExcel(searchState)}
+  disabled={loading}
+  className={`cursor-pointer inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg shadow-md transition-all duration-150 ${
+    loading
+      ? "bg-gray-400 cursor-not-allowed"
+      : "bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white text-[12px] focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1"
+  }`}
+>
+  {rows.length === 0 ? "Download Template" : "Download Data"}
+</button>
+
+
+
       </div>
 
       {loading && <p className="text-blue-500 text-sm mb-2">Loading...</p>}
@@ -100,11 +104,13 @@ const FileInput = () => {
       )}
 
       <DataTable
-        headers={UI_HEADERS}
-        rows={rows}
-        totalRecords={totalRecords}
-        fetchPage={getProcessedData}
-      />
+  headers={UI_HEADERS}
+  rows={rows}
+  totalRecords={totalRecords}
+  fetchPage={getProcessedData}
+  onSearchChange={(s) => setSearchState(s)}
+/>
+
     </div>
   );
 };

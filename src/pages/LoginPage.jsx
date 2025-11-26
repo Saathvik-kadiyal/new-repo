@@ -9,6 +9,8 @@ import {
   Alert,
 } from "@mui/material";
 import axios from "axios";
+import MouritechImg from "../assets/MOURITECH_Logo.png";
+
 
 const backendApi = import.meta.env.VITE_BACKEND_API;
 
@@ -51,14 +53,18 @@ export default function LoginPage() {
 
   return (
     <Box
-      sx={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        bgcolor: "#f7f9fc",
-      }}
-    >
+  sx={{
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "100vh",
+    backgroundImage: `url(${MouritechImg})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+  }}
+>
+
       <Paper
         elevation={4}
         sx={{
@@ -69,6 +75,7 @@ export default function LoginPage() {
           textAlign: "center",
         }}
       >
+        
         <Typography variant="h5" fontWeight={600} mb={2}>
           Sign in to your account
         </Typography>

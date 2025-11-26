@@ -1,72 +1,94 @@
 import React, { useEffect, useState } from "react";
-const backendApi = import.meta.env.VITE_BACKEND_API;
+import { fetchClientSummary } from "../utils/helper";
 import axios from "axios";
+import TextField from "@mui/material/TextField";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
 
 const ClientSummaryPage = () => {
   const [summaryData, setSummaryData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Current month default
-  const today = new Date();
-  const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const today = dayjs();
+  const [startMonth, setStartMonth] = useState(today);
+  const [endMonth, setEndMonth] = useState(null);
 
-  const months = [
-    "01", "02", "03", "04", "05", "06",
-    "07", "08", "09", "10", "11", "12"
-  ];
+  const fetchSummary = async () => {
+    if (!startMonth) return;
+    setLoading(true);
+    setError("");
 
+    const token = localStorage.getItem("access_token");
 
-const fetchSummary = async (monthValue) => {
-  setLoading(true);
-  setError("");
+    try {
+      let data;
 
-  try {
-    const { data } = await axios.get(
-      `${backendApi}/summary/client-shift-summary`,
-      {
-        params: { payroll_month: monthValue },
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
+      if (!endMonth || startMonth.isSame(endMonth, "month")) {
+        // Single month
+        data = await fetchClientSummary(token, startMonth.format("YYYY-MM"));
+      } else {
+        // Multiple months / interval
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_API}/interval/get_interval_summary`, {
+          params: {
+            start_month: startMonth.format("YYYY-MM"),
+            end_month: endMonth.format("YYYY-MM"),
+          },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        data = res.data;
+
+        // Normalize object to array for table
+        if (data && typeof data === "object" && !Array.isArray(data)) {
+          data = Object.entries(data).map(([clientName, values]) => ({
+            client: clientName,
+            ...values,
+          }));
+        }
       }
-    );
 
-    setSummaryData(Array.isArray(data) ? data : []);
-  } catch (err) {
-    setError("Unable to fetch summary data. Please try again later.");
-  } finally {
-    setLoading(false);
-  }
-};
+      setSummaryData(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message || "Unable to fetch summary data.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetchSummary(selectedMonth);
-  }, [selectedMonth]);
+    fetchSummary();
+  }, [startMonth, endMonth]);
 
   const headers = summaryData.length > 0 ? Object.keys(summaryData[0]) : [];
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-2">
         <h2 className="text-xl font-bold">Client Summary</h2>
 
-        {/* Month Selector */}
-        <select
-          className="border px-3 py-2 rounded-md bg-white text-[12px]"
-          value={selectedMonth.slice(5, 7)}
-          onChange={(e) => {
-            const newMonth = `${today.getFullYear()}-${e.target.value}`;
-            setSelectedMonth(newMonth);
-          }}
-        >
-          {months.map((m, i) => (
-            <option key={i} value={m}>
-              {new Date(0, m - 1).toLocaleString("default", { month: "long" })}
-            </option>
-          ))}
-        </select>
+        <div className="flex gap-2 mt-2 md:mt-0">
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              views={["year", "month"]}
+              label="Start Month"
+              value={startMonth}
+              onChange={(newValue) => setStartMonth(newValue)}
+              renderInput={(params) => <TextField {...params} size="small" className="w-40" />}
+              inputFormat="YYYY-MM"
+            />
+
+            <DatePicker
+              views={["year", "month"]}
+              label="End Month (Optional)"
+              value={endMonth}
+              onChange={(newValue) => setEndMonth(newValue)}
+              renderInput={(params) => <TextField {...params} size="small" className="w-40" />}
+              inputFormat="YYYY-MM"
+            />
+          </LocalizationProvider>
+        </div>
       </div>
 
       {loading ? (
@@ -75,15 +97,13 @@ const fetchSummary = async (monthValue) => {
         <table className="border-collapse border border-gray-300 w-full text-sm text-gray-700">
           <thead>
             <tr className="bg-gray-100">
-              {headers.length > 0 ? (
-                headers.map((key) => (
-                  <th key={key} className="border px-2 py-1 capitalize text-left">
-                    {key.replace(/_/g, " ")}
-                  </th>
-                ))
-              ) : (
-                <th className="border px-2 py-1 text-center">No Headers</th>
-              )}
+              {headers.length > 0
+                ? headers.map((key) => (
+                    <th key={key} className="border px-2 py-1 capitalize text-left">
+                      {key.replace(/_/g, " ")}
+                    </th>
+                  ))
+                : <th className="border px-2 py-1 text-center">No Headers</th>}
             </tr>
           </thead>
 

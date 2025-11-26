@@ -30,10 +30,11 @@ export const fetchEmployees = async ({
 
     url = `${backendApi}/employee-details/Search?${params.toString()}`;
   }
-
+  console.log(url)
   const response = await axios.get(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
+
   return response.data;
 };
 
@@ -120,3 +121,31 @@ export const updateEmployeeShift = async (employeeId, payrollMonth, payload, tok
     }
   }
 };
+
+
+export const fetchClientSummary = async (token, payrollMonth) => {
+  if (!token) throw new Error("Not authenticated");
+
+  try {
+    const response = await axios.get(
+      `${backendApi}/summary/client-shift-summary`,
+      {
+        params: { payroll_month: payrollMonth },
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    return response.data;
+
+  } catch (err) {
+    if (err?.response?.data?.detail) {
+      throw new Error(err.response.data.detail); 
+    }
+
+    if (err?.message) {
+      throw new Error(err.message);
+    }
+
+    throw new Error("Unable to fetch summary data.");
+  }
+};
+
