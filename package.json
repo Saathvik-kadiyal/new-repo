@@ -23,6 +23,7 @@
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "react-router-dom": "7.9.5",
+    "recharts": "^3.5.0",
     "xlsx": "0.18.5"
   },
   "devDependencies": {
@@ -37,6 +38,6 @@
     "globals": "16.4.0",
     "postcss": "8.5.6",
     "tailwindcss": "4.1.17",
-    "vite": "7.1.7"
+    "vite": "^7.1.7"
   }
 }
