@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
-import PrivateRoute from "../component/PrivateRoute.jsx";
 import Layout from "../Layout/Layout.jsx";
+import PrivateRoute from "./PrivateRoute.jsx";
 
 // Lazy imports
 const DashboardPage = lazy(() => import("../pages/DashboardPage.jsx"));
@@ -33,7 +33,7 @@ const AppRoutes = () => {
           }
         />
         <Route
-          path="employee-details"
+          path="shift-allowance"
           element={
             <Suspense fallback={<div className="p-6">Loading Employee Page...</div>}>
               <FileInput />

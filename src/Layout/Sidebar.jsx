@@ -8,7 +8,7 @@ const Sidebar = () => {
 
   const menuItems = [
     { icon: <House size={20} />, label: "Dashboard", path: "/" },
-    { icon: <Users size={20} />, label: "Employee Details", path: "/employee-details" },
+    { icon: <Users size={20} />, label: "ShiftAllowance", path: "/shift-allowance" },
     { icon: <NotebookPen size={20} />, label: "Client Summary", path: "/client-summary" },
   ];
 

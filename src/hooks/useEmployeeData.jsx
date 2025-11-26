@@ -15,6 +15,8 @@ export const UI_HEADERS = [
   "Project Code",
   "Account Manager",
   "Client",
+  "Duration Month",
+  "Payroll Month",
 ];
 
 export const EXPORT_HEADERS = [
@@ -50,13 +52,15 @@ const FIELD_MAP = {
   project_code: "Project Code",
   account_manager: "Account Manager",
   client: "Client",
+  duration_month:"Duration Month",
+  payroll_month:"Payroll Month"
 };
 
 const backendApi = import.meta.env.VITE_BACKEND_API;
 
 export const useEmployeeData = () => {
-  const [rows, setRows] = useState([]); // all fetched rows (search or normal)
-  const [displayRows, setDisplayRows] = useState([]); // rows to show for current page
+  const [rows, setRows] = useState([]);
+  const [displayRows, setDisplayRows] = useState([]);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
@@ -80,13 +84,13 @@ export const useEmployeeData = () => {
     setModelOpen(false);
   }, []);
 
-  // Normal paginated fetch
   const getProcessedData = useCallback(
     async (start = 0, limit = 10) => {
       if (!token) return;
       try {
         setLoading(true);
         const data = await fetchEmployees({ token, start, limit });
+
         const mappedRows = Array.isArray(data.data)
           ? data.data.map((item) => {
               const filtered = { emp_id: item.emp_id };
@@ -101,7 +105,8 @@ export const useEmployeeData = () => {
               return filtered;
             })
           : [];
-          setError("");
+
+        setError("");
         setRows(mappedRows);
         setTotalRecords(data.total_records || 0);
         setTotalPages(Math.ceil((data.total_records || 0) / limit));
@@ -112,104 +117,131 @@ export const useEmployeeData = () => {
         setLoading(false);
       }
     },
-    []
+    [token]
   );
 
-const debouncedFetch = useCallback(
-  debounce(async (query, by) => {
-    if (!token) return;
+  const debouncedFetch = useCallback(
+    debounce(async (value, by) => {
+      if (!token) return;
 
-    if (!query || query.trim().length < 1) {
-      setError("");
-      getProcessedData((page - 1) * 10, 10);
-      return;
-    }
+      // MonthRange search
+      if (by === "MonthRange") {
+        const { startMonth, endMonth } = value;
 
-    try {
-      setLoading(true);
-      const data = await fetchEmployees({
-        token,
-        searchBy: by,
-        searchQuery: query,
-      });
+        if (!startMonth) return; // at least start month must exist
 
-      // Normal mapping if data exists
-      const mappedRows = Array.isArray(data.data)
-        ? data.data.map((item) => {
+        try {
+          setLoading(true);
+          const params= { start_month: startMonth };
+          if (endMonth) params.end_month = endMonth;
+
+          const res = await axios.get(`${backendApi}/monthly/search`, {
+            params,
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          const mappedRows = res.data.map((item) => {
             const filtered = { emp_id: item.emp_id };
             Object.entries(FIELD_MAP).forEach(([key, label]) => {
               filtered[label] = item[key] ?? "";
             });
-            const shifts = item.shift_mappings || [];
-            filtered["TOTAL DAYS"] = shifts.reduce(
-              (acc, s) => acc + (s.days || 0),
-              0
-            );
             return filtered;
-          })
-        : [];
+          });
 
-      setError("");
-      setRows(mappedRows);
-      setTotalRecords(mappedRows.length);
-      setTotalPages(Math.ceil(mappedRows.length / 10));
-      setPage(1);
-    } catch (err) {
-      console.error(err);
+          setRows(mappedRows);
+          setTotalRecords(mappedRows.length);
+          setTotalPages(Math.ceil(mappedRows.length / 10));
+          setPage(1);
+          setError("");
 
-      // **Get error message from backend**
-      const message =
-        err.response?.data?.detail || "Failed to fetch search results";
+        } catch (err) {
+          const message =
+            err.response?.data?.detail || "No data found for selected month(s)";
+          setError(message);
+          setRows([]);
+          setTotalRecords(0);
+          setTotalPages(0);
+          setPage(1);
+        } finally {
+          setLoading(false);
+        }
 
-      setError(message);
-      setRows([]);
-      setTotalRecords(0);
-      setTotalPages(0);
-      setPage(1);
-    } finally {
-      setLoading(false);
-    }
-  }, 500),
-  [token, page, getProcessedData]
-);
+        return; // stop further processing
+      }
+
+      // normal text search
+     if (!value || (typeof value === "string" && value.trim().length < 1)) {
+  console.log(value);
+  setError("");
+  getProcessedData((page - 1) * 10, 10);
+  return;
+}
 
 
+      try {
+        setLoading(true);
+        const data = await fetchEmployees({ token, searchBy: by, searchQuery: value });
+        const mappedRows = Array.isArray(data.data)
+          ? data.data.map((item) => {
+              const filtered = { emp_id: item.emp_id };
+              Object.entries(FIELD_MAP).forEach(([key, label]) => {
+                filtered[label] = item[key] ?? "";
+              });
+              return filtered;
+            })
+          : [];
+
+        setRows(mappedRows);
+        setTotalRecords(mappedRows.length);
+        setTotalPages(Math.ceil(mappedRows.length / 10));
+        setPage(1);
+        setError("");
+      } catch (err) {
+        const message = err.response?.data?.detail || "Failed to fetch results";
+        setError(message);
+        setRows([]);
+        setTotalRecords(0);
+        setTotalPages(0);
+        setPage(1);
+      } finally {
+        setLoading(false);
+      }
+    }, 500),
+    [token, page, getProcessedData]
+  );
 
   useEffect(() => {
     const start = (page - 1) * 10;
     setDisplayRows(rows.slice(start, start + 10));
   }, [rows, page]);
 
-const fetchDataFromBackend = useCallback(
-  async (file) => {
-    if (!token) return;
-    resetState();
-    setLoading(true);
+  const fetchDataFromBackend = useCallback(
+    async (file) => {
+      if (!token) return;
+      resetState();
+      setLoading(true);
+      try {
+        const data = await uploadFile(token, file);
+        if (data.download_link) setErrorFileLink(data.download_link);
+        setTimeout(() => getProcessedData((page - 1) * 10, 10), 1200);
+      } catch (err) {
+        console.error(err);
+        setError(err.message || "An unknown error occurred during file upload");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token, resetState, page, getProcessedData]
+  );
 
-    try {
-      const data = await uploadFile(token, file);
-      if (data.download_link) setErrorFileLink(data.download_link);
-      setTimeout(() => getProcessedData((page - 1) * 10, 10), 1200);
-
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "An unknown error occurred during file upload");
-    } finally {
-      setLoading(false);
-    }
-  },
-  [token, resetState, page, getProcessedData]
-);
-
-const clearErrorFile = () => setErrorFileLink("");
-
+  const clearErrorFile = () => setErrorFileLink("");
 
   const getEmployeeDetailHandler = useCallback(
-    async (id) => {
+    async (emp_id,duration_month,payroll_month) => {
       if (!token) return;
       try {
         setLoadingDetail(true);
-        const emp = await fetchEmployeeDetail(token, id);
+        const emp = await fetchEmployeeDetail(token, emp_id,duration_month,payroll_month);
         setSelectedEmployee(emp);
         setModelOpen(true);
       } catch (err) {
@@ -223,7 +255,8 @@ const clearErrorFile = () => setErrorFileLink("");
   );
 
   const handleIndividualEmployee = useCallback(
-    (id) => getEmployeeDetailHandler(id),
+    (emp_id,duration_month,payroll_month) =>
+      getEmployeeDetailHandler(emp_id,duration_month,payroll_month),
     [getEmployeeDetailHandler]
   );
 
@@ -243,31 +276,42 @@ const clearErrorFile = () => setErrorFileLink("");
     );
   }, [rows]);
 
-  const downloadSearchData = useCallback(async (searchState) => {
+const downloadSearchData = useCallback(async (searchState) => {
   try {
     const token = localStorage.getItem("access_token");
-    const { query, searchBy } = searchState || {};
+    const params = {};
 
-    if (!query?.trim()) {
-      return alert("Please enter a search query to download search data.");
+    // --- Month range ---
+    if (searchState.startMonth) {
+      params.start_month = searchState.startMonth;
+      if (searchState.endMonth) params.end_month = searchState.endMonth;
     }
 
-    // Fetch search data from backend
-    const params = {};
-    if (searchBy === "Emp ID") params.emp_id = query.trim();
-    else if (searchBy === "Account Manager") params.account_manager = query.trim();
+    // --- Text search ---
+    if (searchState.query?.trim()) {
+      const { query, searchBy } = searchState;
+      if (searchBy === "Emp ID") params.emp_id = query.trim();
+      if (searchBy === "Account Manager") params.account_manager = query.trim();
+    }
+
+    // Validate: at least one filter required
+    if (!Object.keys(params).length) {
+      return alert("Please enter a search query or select month(s) to download data.");
+    }
 
     const response = await axios.get(`${backendApi}/excel/download`, {
-      responseType: "blob",
       params,
+      responseType: "blob",
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    const blob = new Blob([response.data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", "Allowance_Search_Data.xlsx");
+    link.setAttribute("download", "Allowance_Data.xlsx");
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -302,16 +346,14 @@ const clearErrorFile = () => setErrorFileLink("");
     }
   }, [errorFileLink, token]);
 
-  const handlePageChange = useCallback((newPage) => {
-    setPage(newPage);
+  const handlePageChange = useCallback((newPage) => setPage(newPage), []);
+
+  useEffect(() => {
+    getProcessedData(0, 10);
   }, []);
 
-useEffect(() => {
-  getProcessedData(0, 10);
-}, []); 
-
-
   return {
+    UI_HEADERS,
     EXPORT_HEADERS,
     rows,
     displayRows,

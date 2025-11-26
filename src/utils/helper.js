@@ -39,13 +39,20 @@ export const fetchEmployees = async ({
 };
 
 // Fetch individual employee details
-export const fetchEmployeeDetail = async (token, emp_id) => {
+export const fetchEmployeeDetail = async (token,emp_id,duration_month,payroll_month) => {
   if (!token) throw new Error("Not authenticated");
+  const payload = {
+    emp_id,
+    duration_month,
+    payroll_month
+  }
 
-  const response = await axios.get(`${backendApi}/display/${emp_id}`, {
+  const response = await axios.get(`${backendApi}/display/details`, {
     headers: { Authorization: `Bearer ${token}` },
+      params: payload, 
   });
 
+  console.log(response.data)
   return response.data;
 };
 
@@ -86,7 +93,9 @@ export const uploadFile = async (token, file) => {
 };
 
 
-export const updateEmployeeShift = async (employeeId, payrollMonth, payload, token) => {
+export const updateEmployeeShift = async (token , emp_id,
+        duration_month,
+        payroll_month,payload) => {
   if (!token) throw new Error("Not authenticated");
 
   try {
@@ -95,8 +104,10 @@ export const updateEmployeeShift = async (employeeId, payrollMonth, payload, tok
       payload,
       {
         params: {
-          emp_id: employeeId,
-          payroll_month: payrollMonth,
+          emp_id,
+          payroll_month,
+          duration_month,
+          
         },
         headers: {
           "Content-Type": "application/json",
@@ -149,3 +160,61 @@ export const fetchClientSummary = async (token, payrollMonth) => {
   }
 };
 
+
+export const fetchEmployeesByMonthRange = async (token, startMonth, endMonth) => {
+  if (!token) throw new Error("Not authenticated");
+
+  const url = `${backendApi}/monthly/search`;
+
+  try {
+    const response = await axios.get(url, {
+      params: {
+        start_month: startMonth,
+        end_month: endMonth,
+      },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return response.data; // Full list (no pagination)
+  } catch (err) {
+    if (err?.response?.data?.detail) {
+      throw new Error(err.response.data.detail);
+    }
+    throw new Error("Failed to fetch month range data");
+  }
+};
+
+
+export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
+  if (!token) throw new Error("Not authenticated");
+
+  try {
+    const response = await axios.get(`${backendApi}/interval/get_interval_summary`, {
+      params: { start_month: startMonth, end_month: endMonth },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return response.data || {};
+  } catch (err) {
+    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+    if (err?.message) throw new Error(err.message);
+    throw new Error("Unable to fetch summary range.");
+  }
+};
+
+export const fetchHorizontalBarData = async (month) => {
+  try {
+    const response = await axios.get(`${backendApi}/horizontal-bar`, {
+      params: { payroll_month: month },
+    });
+    return response.data.horizontal_bar;
+  } catch (error) {
+    console.error("Error fetching horizontal bar data:", error);
+    return {};
+  }
+};
+
+// Helper to get month string format YYYY-MM
+export const getMonthString = (monthIndex) => {
+  return dayjs().month(monthIndex).format("YYYY-MM");
+};
