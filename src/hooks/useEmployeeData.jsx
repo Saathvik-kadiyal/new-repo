@@ -6,6 +6,7 @@ import {
   fetchEmployeeDetail,
   uploadFile,
   debounce,
+  fetchEmployeesByMonthRange,
 } from "../utils/helper.js";
 
 export const UI_HEADERS = [
@@ -52,8 +53,8 @@ const FIELD_MAP = {
   project_code: "Project Code",
   account_manager: "Account Manager",
   client: "Client",
-  duration_month:"Duration Month",
-  payroll_month:"Payroll Month"
+  duration_month: "Duration Month",
+  payroll_month: "Payroll Month",
 };
 
 const backendApi = import.meta.env.VITE_BACKEND_API;
@@ -71,8 +72,17 @@ export const useEmployeeData = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [modelOpen, setModelOpen] = useState(false);
   const [onSave, setOnSave] = useState(false);
+  const [success,setSuccess]=useState('')
+  
+  useEffect(() => {
+  if (success) {
+    const timer = setTimeout(() => setSuccess(""), 4000);
+    return () => clearTimeout(timer);
+  }
+}, [success]);
 
   const token = localStorage.getItem("access_token");
+
 
   const resetState = useCallback(() => {
     setRows([]);
@@ -84,164 +94,211 @@ export const useEmployeeData = () => {
     setModelOpen(false);
   }, []);
 
-  const getProcessedData = useCallback(
-    async (start = 0, limit = 10) => {
-      if (!token) return;
-      try {
-        setLoading(true);
-        const data = await fetchEmployees({ token, start, limit });
+const getProcessedData = useCallback(
+  async (start = 0, limit = 10) => {
+    if (!token) return;
+    try {
+      setLoading(true);
 
-        const mappedRows = Array.isArray(data.data)
-          ? data.data.map((item) => {
-              const filtered = { emp_id: item.emp_id };
-              Object.entries(FIELD_MAP).forEach(([key, label]) => {
-                filtered[label] = item[key] ?? "";
-              });
-              const shifts = item.shift_mappings || [];
-              filtered["TOTAL DAYS"] = shifts.reduce(
-                (acc, s) => acc + (s.days || 0),
-                0
-              );
-              return filtered;
-            })
-          : [];
+      const data = await fetchEmployees({ token, start, limit });
 
-        setError("");
-        setRows(mappedRows);
-        setTotalRecords(data.total_records || 0);
-        setTotalPages(Math.ceil((data.total_records || 0) / limit));
-      } catch (err) {
-        console.error(err);
-        setError("Failed to fetch data");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [token]
-  );
+      const mappedRows = data.data.map((item, index) => ({
+        id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`, // unique
+        emp_id: item.emp_id,
+        "Duration Month": item.duration_month,
+        "Payroll Month": item.payroll_month,
+        ...Object.fromEntries(
+          Object.entries(FIELD_MAP).map(([key, label]) => [label, item[key] ?? ""])
+        ),
+      }));
 
-  const debouncedFetch = useCallback(
-    debounce(async (value, by) => {
-      if (!token) return;
+      setRows(mappedRows);
+      setTotalRecords(data.total_records || mappedRows.length);
+      setTotalPages(Math.ceil((data.total_records || mappedRows.length) / limit));
+      setError("");
+    } catch (err) {
+      setError("Failed to fetch data");
+      setRows([]);
+      setTotalPages(0);
+    } finally {
+      setLoading(false);
+    }
+  },
+  [token]
+);
 
-      // MonthRange search
-      if (by === "MonthRange") {
-        const { startMonth, endMonth } = value;
 
-        if (!startMonth) return; // at least start month must exist
 
-        try {
-          setLoading(true);
-          const params= { start_month: startMonth };
-          if (endMonth) params.end_month = endMonth;
 
-          const res = await axios.get(`${backendApi}/monthly/search`, {
-            params,
-            headers: { Authorization: `Bearer ${token}` },
-          });
+const debouncedFetch = useCallback(
+  debounce(async (value, by, page = 1) => {
+    if (!token) return;
+    const start = (page - 1) * 10;
 
-          const mappedRows = res.data.map((item) => {
-            const filtered = { emp_id: item.emp_id };
-            Object.entries(FIELD_MAP).forEach(([key, label]) => {
-              filtered[label] = item[key] ?? "";
-            });
-            return filtered;
-          });
+    // Search + Month Range
+    if (by === "SearchAndMonthRange") {
+      const { searchQuery, startMonth, endMonth } = value;
+      const res = await fetchEmployees({
+        token,
+        searchBy: value.searchBy,
+        searchQuery,
+        start: 0,
+        limit: 1000, // fetch all
+      });
 
-          setRows(mappedRows);
-          setTotalRecords(mappedRows.length);
-          setTotalPages(Math.ceil(mappedRows.length / 10));
-          setPage(1);
-          setError("");
+      const mappedRows = res.data
+        .slice(start, start + 10)
+        .map((item, index) => ({
+          id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
+          emp_id: item.emp_id,
+          "Duration Month": item.duration_month,
+          "Payroll Month": item.payroll_month,
+          ...Object.fromEntries(
+            Object.entries(FIELD_MAP).map(([k, v]) => [v, item[k] ?? ""])
+          ),
+        }));
 
-        } catch (err) {
-          const message =
-            err.response?.data?.detail || "No data found for selected month(s)";
-          setError(message);
-          setRows([]);
-          setTotalRecords(0);
-          setTotalPages(0);
-          setPage(1);
-        } finally {
-          setLoading(false);
-        }
+      setRows(mappedRows);
+      setTotalRecords(res.total_records || res.data.length);
+      setTotalPages(Math.ceil((res.total_records || res.data.length) / 10));
+      setError("");
+      return;
+    }
 
-        return; // stop further processing
-      }
+    // Month Range Only
+    // 🔹 Month Range Only
+if (by === "MonthRange") {
+  const { startMonth, endMonth } = value;
+  let res = [];
 
-      // normal text search
-     if (!value || (typeof value === "string" && value.trim().length < 1)) {
-  console.log(value);
-  setError("");
-  getProcessedData((page - 1) * 10, 10);
+  try {
+    res = await fetchEmployeesByMonthRange(token, startMonth, endMonth);
+  } catch (err) {
+    setRows([]);
+    setTotalRecords(0);
+    setTotalPages(0);
+    setError(err.message); // display "No data found for month range ..."
+    return;
+  }
+
+  if (!res || res.length === 0) {
+    setRows([]);
+    setTotalRecords(0);
+    setTotalPages(0);
+    setError(`No data found for month range ${startMonth} to ${endMonth}`);
+    return;
+  }
+
+  const mappedRows = res
+    .slice(start, start + 10)
+    .map((item, index) => ({
+      id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
+      emp_id: item.emp_id,
+      "Duration Month": item.duration_month,
+      "Payroll Month": item.payroll_month,
+      ...Object.fromEntries(
+        Object.entries(FIELD_MAP).map(([k, v]) => [v, item[k] ?? ""])
+      ),
+    }));
+
+  setRows(mappedRows);
+  setTotalRecords(res.length);
+  setTotalPages(Math.ceil(res.length / 10));
+  setError(""); // clear error if data exists
   return;
 }
 
 
-      try {
-        setLoading(true);
-        const data = await fetchEmployees({ token, searchBy: by, searchQuery: value });
-        const mappedRows = Array.isArray(data.data)
-          ? data.data.map((item) => {
-              const filtered = { emp_id: item.emp_id };
-              Object.entries(FIELD_MAP).forEach(([key, label]) => {
-                filtered[label] = item[key] ?? "";
-              });
-              return filtered;
-            })
-          : [];
+    // Text Search Only
+    const data = await fetchEmployees({
+      token,
+      searchBy: by,
+      searchQuery: value,
+      start,
+      limit: 10,
+    });
 
-        setRows(mappedRows);
-        setTotalRecords(mappedRows.length);
-        setTotalPages(Math.ceil(mappedRows.length / 10));
-        setPage(1);
-        setError("");
-      } catch (err) {
-        const message = err.response?.data?.detail || "Failed to fetch results";
-        setError(message);
-        setRows([]);
-        setTotalRecords(0);
-        setTotalPages(0);
-        setPage(1);
-      } finally {
-        setLoading(false);
-      }
-    }, 500),
-    [token, page, getProcessedData]
-  );
+    const mappedRows = data.data.map((item, index) => ({
+      id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
+      emp_id: item.emp_id,
+      "Duration Month": item.duration_month,
+      "Payroll Month": item.payroll_month,
+      ...Object.fromEntries(
+        Object.entries(FIELD_MAP).map(([k, v]) => [v, item[k] ?? ""])
+      ),
+    }));
+
+    setRows(mappedRows);
+    setTotalRecords(data.total_records || mappedRows.length);
+    setTotalPages(Math.ceil((data.total_records || mappedRows.length) / 10));
+    setError("");
+  }, 500),
+  [token]
+);
+
 
   useEffect(() => {
-    const start = (page - 1) * 10;
-    setDisplayRows(rows.slice(start, start + 10));
-  }, [rows, page]);
+    setDisplayRows(rows);
+  }, [rows]);
 
-  const fetchDataFromBackend = useCallback(
-    async (file) => {
-      if (!token) return;
-      resetState();
-      setLoading(true);
-      try {
-        const data = await uploadFile(token, file);
-        if (data.download_link) setErrorFileLink(data.download_link);
-        setTimeout(() => getProcessedData((page - 1) * 10, 10), 1200);
-      } catch (err) {
-        console.error(err);
-        setError(err.message || "An unknown error occurred during file upload");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [token, resetState, page, getProcessedData]
-  );
+const fetchDataFromBackend = useCallback(
+  async (file) => {
+    if (!token) return;
+    resetState();
+    setLoading(true);
+
+    try {
+      const res = await uploadFile(token, file);
+
+      setSuccess(res.message || "File processed successfully");
+      getProcessedData((page - 1) * 10, 10);
+    } 
+  catch (err) {
+    console.log(err)
+  if (err) {
+    const {status,detail} = err
+    console.log(detail)
+    if (detail) {
+
+      if (detail.message) setError(detail.message);
+
+      // Directly set error file link if present
+      if (detail.error_file) setErrorFileLink(detail.error_file);
+
+      setTimeout(() => getProcessedData((page - 1) * 10, 10), 1000);
+      return;
+    }
+
+    // fallback
+    setError(detail || "Unexpected server error");
+  } else {
+    setError("Network error, please try again");
+  }
+}
+
+    finally {
+      setLoading(false);
+    }
+  },
+  [token, resetState, page, getProcessedData]
+);
+
+
+
 
   const clearErrorFile = () => setErrorFileLink("");
 
   const getEmployeeDetailHandler = useCallback(
-    async (emp_id,duration_month,payroll_month) => {
+    async (emp_id, duration_month, payroll_month) => {
       if (!token) return;
       try {
         setLoadingDetail(true);
-        const emp = await fetchEmployeeDetail(token, emp_id,duration_month,payroll_month);
+        const emp = await fetchEmployeeDetail(
+          token,
+          emp_id,
+          duration_month,
+          payroll_month
+        );
         setSelectedEmployee(emp);
         setModelOpen(true);
       } catch (err) {
@@ -255,8 +312,8 @@ export const useEmployeeData = () => {
   );
 
   const handleIndividualEmployee = useCallback(
-    (emp_id,duration_month,payroll_month) =>
-      getEmployeeDetailHandler(emp_id,duration_month,payroll_month),
+    (emp_id, duration_month, payroll_month) =>
+      getEmployeeDetailHandler(emp_id, duration_month, payroll_month),
     [getEmployeeDetailHandler]
   );
 
@@ -281,22 +338,25 @@ const downloadSearchData = useCallback(async (searchState) => {
     const token = localStorage.getItem("access_token");
     const params = {};
 
-    // --- Month range ---
+    /** ---------- Month Range ---------- */
     if (searchState.startMonth) {
       params.start_month = searchState.startMonth;
       if (searchState.endMonth) params.end_month = searchState.endMonth;
     }
 
-    // --- Text search ---
+    /** ---------- Text Search ---------- */
     if (searchState.query?.trim()) {
       const { query, searchBy } = searchState;
+
       if (searchBy === "Emp ID") params.emp_id = query.trim();
       if (searchBy === "Account Manager") params.account_manager = query.trim();
     }
 
-    // Validate: at least one filter required
+    /** --- Validate: at least one filter required --- */
     if (!Object.keys(params).length) {
-      return alert("Please enter a search query or select month(s) to download data.");
+      return alert(
+        "Please enter a search query or select month(s) to download data."
+      );
     }
 
     const response = await axios.get(`${backendApi}/excel/download`, {
@@ -305,6 +365,7 @@ const downloadSearchData = useCallback(async (searchState) => {
       headers: { Authorization: `Bearer ${token}` },
     });
 
+    /** ---------- DOWNLOAD EXCEL ---------- */
     const blob = new Blob([response.data], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
@@ -326,8 +387,9 @@ const downloadSearchData = useCallback(async (searchState) => {
 
   const downloadErrorExcel = useCallback(async () => {
     if (!errorFileLink) return alert("No error file available");
+    console.log(errorFileLink)
     try {
-      const response = await axios.get(errorFileLink, {
+      const response = await axios.get(`${backendApi}/upload/error-files/${errorFileLink}`, {
         responseType: "blob",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -379,6 +441,7 @@ const downloadSearchData = useCallback(async (searchState) => {
     onSave,
     setOnSave,
     handlePageChange,
-    clearErrorFile
+    clearErrorFile,
+    success
   };
 };

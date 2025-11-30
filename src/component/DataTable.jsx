@@ -1,16 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { DataGrid, GridOverlay } from "@mui/x-data-grid";
-import { IconButton, InputAdornment } from "@mui/material";
-import { X } from "lucide-react";
-import {
-  MenuItem,
-  Select,
-  TextField,
-  Box,
-  Typography,
-  Button,
-} from "@mui/material";
-
+import { IconButton, InputAdornment, MenuItem, Select, TextField, Box, Typography, Button } from "@mui/material";
+import { X, Eye } from "lucide-react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -18,7 +9,6 @@ import dayjs from "dayjs";
 
 import EmployeeModal from "./EmployeModel.jsx";
 import { useEmployeeData } from "../hooks/useEmployeeData.jsx";
-import { Eye } from "lucide-react";
 
 const DataTable = ({ headers }) => {
   const {
@@ -43,10 +33,9 @@ const DataTable = ({ headers }) => {
   const [startMonth, setStartMonth] = useState(null);
   const [endMonth, setEndMonth] = useState(null);
 
-  const pattern = /^[A-Za-z]{2}[A-Za-z0-9-_ ]*$/;
-  const firstRender = useRef(true);
+  console.log(displayRows)
 
-  const monthDebounceRef = useRef(null);
+  const pattern = /^[A-Za-z]{2}[A-Za-z0-9-_ ]*$/;
 
   const columns = [
     ...headers.map((header) => ({
@@ -66,7 +55,7 @@ const DataTable = ({ headers }) => {
         <Button
           size="small"
           onClick={(e) => {
-            e.stopPropagation(); // Prevent row selection/drag
+            e.stopPropagation();
             handleIndividualEmployee(
               params.row["Emp ID"],
               params.row["Duration Month"],
@@ -81,88 +70,72 @@ const DataTable = ({ headers }) => {
     },
   ];
 
-useEffect(() => {
-  if (errorSearch) return;
-  if (firstRender.current) {
-    firstRender.current = false;
-    return;
-  }
-
-  if (searchQuery.trim().length > 3) {
-    // Text search
-    debouncedFetch(searchQuery, searchBy);
-  } else if (startMonth) {
-    // Month range search
-    debouncedFetch({ startMonth, endMonth }, "MonthRange");
-  } else if (!searchQuery && !startMonth) {
-    getProcessedData((page - 1) * 10, 10);
-  }
-}, [searchQuery, searchBy, startMonth, endMonth, page, errorSearch]);
-
-
-
-
-  // Auto search when month range changes
   useEffect(() => {
-    if (!startMonth) return;
+    const start = (page - 1) * 10;
+    if (searchQuery.trim().length > 3 && startMonth) return;
 
-    if (monthDebounceRef.current) clearTimeout(monthDebounceRef.current);
+    if (searchQuery.trim().length > 3) {
+      debouncedFetch(searchQuery, searchBy, page);
+    } else if (startMonth) {
+      debouncedFetch({ startMonth, endMonth }, "MonthRange", page);
+    } else {
+      getProcessedData(start, 10);
+    }
+  }, [page]);
 
-    monthDebounceRef.current = setTimeout(() => {
-      debouncedFetch({ startMonth, endMonth }, "MonthRange");
-    }, 1000);
 
-    return () => clearTimeout(monthDebounceRef.current);
-  }, [startMonth, endMonth]);
 
-  // Unified download handler
- // Unified Download Button Handler
-const handleDownload = () => {
-  const params = {};
+  useEffect(() => {
+    if (searchQuery.trim().length > 3 && startMonth) return;
 
-  // Add month range if selected
-  if (startMonth) {
-    params.start_month = startMonth;
-    if (endMonth) params.end_month = endMonth;
-  }
+    if (searchQuery.trim().length > 3) {
+      debouncedFetch(searchQuery, searchBy, 1);
+    } else if (startMonth) {
+      debouncedFetch({ startMonth, endMonth }, "MonthRange", 1);
+    } else if (!searchQuery && !startMonth) {
+      getProcessedData(0, 10);
+    }
+  }, [searchQuery, searchBy, startMonth, endMonth]);
 
-  // Add text search if provided
-  if (searchQuery?.trim()) {
-    if (searchBy === "Emp ID") params.emp_id = searchQuery.trim();
-    else if (searchBy === "Account Manager") params.account_manager = searchQuery.trim();
-  }
+  const handleDownload = () => {
+    if (!searchQuery?.trim() && !startMonth)
+      return alert("Please enter a search query or select month(s) to download data.");
 
-  if (!Object.keys(params).length) {
-    return alert("Please enter a search query or select month(s) to download data.");
-  }
-  downloadSearchData({
-    type: startMonth ? "MonthRange" : "Text", 
-    startMonth,
-    endMonth,
-    query: searchQuery.trim(),
-    searchBy,
-  });
-};
+    // Combined condition handled only here ⛳
+    if (searchQuery.trim() && startMonth) {
+      return downloadSearchData({
+        type: "SearchAndMonthRange",
+        startMonth,
+        endMonth,
+        query: searchQuery.trim(),
+        searchBy,
+      });
+    }
 
+    // Search only
+    if (searchQuery.trim()) {
+      return downloadSearchData({
+        type: "Text",
+        query: searchQuery.trim(),
+        searchBy,
+      });
+    }
+
+    // Month only
+    if (startMonth) {
+      return downloadSearchData({
+        type: "MonthRange",
+        startMonth,
+        endMonth,
+      });
+    }
+  };
 
   return (
     <Box sx={{ width: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Search Box */}
-      <Box
-        sx={{
-          display: "flex",
-          gap: 2,
-          mb: 2,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        {/* Text Search */}
-        <Select
-          size="small"
-          value={searchBy}
-          onChange={(e) => setSearchBy(e.target.value)}
-        >
+      {/* Search / Filters */}
+      <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <Select size="small" value={searchBy} onChange={(e) => setSearchBy(e.target.value)}>
           <MenuItem value="Emp ID">Emp ID</MenuItem>
           <MenuItem value="Account Manager">Account Manager</MenuItem>
         </Select>
@@ -175,11 +148,10 @@ const handleDownload = () => {
             onChange={(e) => {
               const value = e.target.value;
               setSearchQuery(value);
+
               if (!value) return setErrorSearch("");
               if (!pattern.test(value)) {
-                setErrorSearch(
-                  "First 2 characters must be letters, then letters, numbers or '-' allowed"
-                );
+                setErrorSearch("First 2 characters must be letters, then letters, numbers or '-' allowed");
               } else {
                 setErrorSearch("");
               }
@@ -190,91 +162,64 @@ const handleDownload = () => {
           {errorSearch && (
             <Typography
               variant="caption"
-              sx={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                color: "red",
-                fontSize: "11px",
-                mt: "2px",
-              }}
+              sx={{ position: "absolute", top: "100%", left: 0, color: "red", fontSize: "11px", mt: "2px" }}
             >
               {errorSearch}
             </Typography>
           )}
         </Box>
 
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-      {/* Start Month Picker */}
-      <DatePicker
-        views={["year", "month"]}
-        label="Start Month"
-        value={startMonth ? dayjs(startMonth) : null}
-        onChange={(newValue) => {
-          setStartMonth(newValue ? newValue.format("YYYY-MM") : null);
-          if (endMonth && dayjs(endMonth).isBefore(newValue, "month")) {
-            setEndMonth(null);
-          }
-        }}
-        inputFormat="YYYY-MM"
-        slotProps={{
-          textField: {
-            size: "small",
-            sx: { width: 140 },
-            InputProps: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  {startMonth && (
+        {/* Month Pickers */}
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            views={["year", "month"]}
+            label="Start Month"
+            value={startMonth ? dayjs(startMonth) : null}
+            onChange={(newValue) => setStartMonth(newValue ? newValue.format("YYYY-MM") : null)}
+            inputFormat="YYYY-MM"
+            disableFuture
+            slotProps={{
+              textField: {
+                size: "small",
+                sx: { width: 140, ml: 2 },
+                InputProps: {
+                  endAdornment: startMonth && (
                     <IconButton size="small" onClick={() => setStartMonth(null)}>
                       <X size={16} />
                     </IconButton>
-                  )}
-                </InputAdornment>
-              ),
-            },
-          },
-        }}
-      />
+                  ),
+                },
+              },
+            }}
+          />
 
-      {/* End Month Picker */}
-      <DatePicker
-        views={["year", "month"]}
-        label="End Month"
-        value={endMonth ? dayjs(endMonth) : null}
-        onChange={(newValue) => setEndMonth(newValue ? newValue.format("YYYY-MM") : null)}
-        minDate={startMonth ? dayjs(startMonth) : undefined}
-        inputFormat="YYYY-MM"
-        slotProps={{
-          textField: {
-            size: "small",
-            sx: { width: 140, ml: 2 },
-            InputProps: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  {endMonth && (
+          <DatePicker
+            views={["year", "month"]}
+            label="End Month"
+            value={endMonth ? dayjs(endMonth) : null}
+            onChange={(newValue) => setEndMonth(newValue ? newValue.format("YYYY-MM") : null)}
+            minDate={startMonth ? dayjs(startMonth) : undefined}
+            inputFormat="YYYY-MM"
+            disableFuture
+            slotProps={{
+              textField: {
+                size: "small",
+                sx: { width: 140, ml: 2 },
+                InputProps: {
+                  endAdornment: endMonth && (
                     <IconButton size="small" onClick={() => setEndMonth(null)}>
                       <X size={16} />
                     </IconButton>
-                  )}
-                </InputAdornment>
-              ),
-            },
-          },
-        }}
-      />
-    </LocalizationProvider>
+                  ),
+                },
+              },
+            }}
+          />
+        </LocalizationProvider>
 
-
-
-        <Button
-  variant="contained"
-  size="small"
-  onClick={handleDownload}
-  disabled={!searchQuery?.trim() && !startMonth}
->
-  Download Data
-</Button>
-
+        <Button variant="contained" size="small" onClick={handleDownload} disabled={!searchQuery?.trim() && !startMonth}>
+          Download Data
+        </Button>
       </Box>
 
       {/* DataGrid */}
@@ -287,19 +232,11 @@ const handleDownload = () => {
           pagination={false}
           hideFooter
           autoHeight={false}
-          getRowId={(row) => row.emp_id}
+          // getRowId={(row) => `${row.emp_id}-${row.payroll_month}-${row.duration_month}`}\
           components={{
             NoRowsOverlay: () => (
               <GridOverlay>
-                <Box
-                  sx={{
-                    height: "100%",
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
+                <Box sx={{ height: "100%", width: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
                   <Typography variant="body2" color="error.main">
                     {error || "No rows found"}
                   </Typography>
@@ -323,14 +260,7 @@ const handleDownload = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            p: 1,
-          }}
-        >
+        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", p: 1 }}>
           <Button disabled={page === 1} onClick={() => handlePageChange(page - 1)}>
             Prev
           </Button>
@@ -345,11 +275,7 @@ const handleDownload = () => {
 
       {/* Modal */}
       {modelOpen && selectedEmployee && (
-        <EmployeeModal
-          employee={selectedEmployee}
-          onClose={() => setModelOpen(false)}
-          loading={loadingDetail}
-        />
+        <EmployeeModal employee={selectedEmployee} onClose={() => setModelOpen(false)} loading={loadingDetail} />
       )}
     </Box>
   );

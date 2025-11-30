@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DataTable from "../component/DataTable.jsx";
 import { useEmployeeData, UI_HEADERS } from "../hooks/useEmployeeData.jsx";
 
@@ -17,16 +17,26 @@ const FileInput = () => {
     fetchDataFromBackend,
     downloadExcel,
     downloadErrorExcel,
+    success
   } = useEmployeeData();
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setFileName(file.name);
-    fetchDataFromBackend(file).then(() => {
-      if (errorFileLink) setErrorModalOpen(true);
-    });
-  };
+const handleFileChange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setFileName(file.name);
+  fetchDataFromBackend(file); 
+};
+
+
+  useEffect(() => {
+  if (errorFileLink) setErrorModalOpen(true);
+}, [errorFileLink]);
+useEffect(() => {
+  if (success) {
+    getProcessedData(0, 10);
+  }
+}, [success]);
+
 
   return (
     <div className="w-full justify-center pt-4">
@@ -67,6 +77,11 @@ const FileInput = () => {
 
 
       </div>
+{success && (
+  <p className="text-green-600 text-sm mb-2 font-medium">
+    {success}
+  </p>
+)}
 
       {loading && <p className="text-blue-500 text-sm mb-2">Loading...</p>}
       {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
@@ -85,7 +100,7 @@ const FileInput = () => {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
-                  downloadErrorExcel();
+                  downloadErrorExcel(errorFileLink);
                   setErrorModalOpen(false);
                 }}
                 className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-all duration-150"

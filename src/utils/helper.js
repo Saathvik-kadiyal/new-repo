@@ -23,20 +23,33 @@ export const fetchEmployees = async ({
 
   let url = `${backendApi}/display/?start=${start}&limit=${limit}`;
 
+  // Search URL logic
   if (searchBy && searchQuery.trim().length > 0) {
     const params = new URLSearchParams();
     if (searchBy === "Emp ID") params.append("emp_id", searchQuery);
     if (searchBy === "Account Manager") params.append("account_manager", searchQuery);
-
     url = `${backendApi}/employee-details/Search?${params.toString()}`;
   }
-  console.log(url)
+
   const response = await axios.get(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  return response.data;
+  const data = response.data;
+
+  if (Array.isArray(data?.data?.data)) {
+    return {
+      ...data,
+      data: data.data.data,
+    };
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data;
+  }
+  return data;
 };
+
 
 // Fetch individual employee details
 export const fetchEmployeeDetail = async (token,emp_id,duration_month,payroll_month) => {
@@ -51,14 +64,13 @@ export const fetchEmployeeDetail = async (token,emp_id,duration_month,payroll_mo
     headers: { Authorization: `Bearer ${token}` },
       params: payload, 
   });
-
-  console.log(response.data)
   return response.data;
 };
 
 // Upload file to backend
 export const uploadFile = async (token, file) => {
   if (!token) throw new Error("Not authenticated");
+
   const formData = new FormData();
   formData.append("file", file);
 
@@ -69,28 +81,35 @@ export const uploadFile = async (token, file) => {
         Authorization: `Bearer ${token}`,
       },
     });
-    return response.data;
 
+    return response.data;
   } catch (err) {
+    // Backend sent response
     if (err.response) {
       const { status, data } = err.response;
-      if ((status === 400 || status === 422) && data?.detail) {
-        throw new Error(data.detail);
-      }
-      if (status === 500 && data?.detail) {
-        throw new Error(data.detail);
-      }
-      if (data?.message) {
-        throw new Error(data.message);
-      }
-      throw new Error(data?.detail || "Something went wrong while uploading");
+
+      // Create a proper Error object so UI can catch it correctly
+      const error = new Error(
+        typeof data?.detail === "string"
+          ? data.detail
+          : data?.message || "File upload failed"
+      );
+
+      error.status = status;
+      error.detail = data?.detail;
+      throw error;
     }
+
+    // No response from backend
     if (err.request) {
       throw new Error("No response from server. Please try again later.");
     }
+
+    // Any other client-side error
     throw new Error(err.message || "File upload failed");
   }
 };
+
 
 
 export const updateEmployeeShift = async (token , emp_id,
@@ -134,31 +153,93 @@ export const updateEmployeeShift = async (token , emp_id,
 };
 
 
-export const fetchClientSummary = async (token, payrollMonth) => {
+export const fetchClientSummary = async (token,month="") => {
   if (!token) throw new Error("Not authenticated");
-
+ console.log(month)
   try {
-    const response = await axios.get(
-      `${backendApi}/summary/client-shift-summary`,
-      {
-        params: { payroll_month: payrollMonth },
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    );
+    const response = await axios.get(`${backendApi}/shift/interval-summary`, {
+      params:{start_month:month},
+      headers: { Authorization: `Bearer ${token}` },
+    });
     return response.data;
-
   } catch (err) {
-    if (err?.response?.data?.detail) {
-      throw new Error(err.response.data.detail); 
-    }
-
-    if (err?.message) {
-      throw new Error(err.message);
-    }
-
+    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+    if (err?.message) throw new Error(err.message);
     throw new Error("Unable to fetch summary data.");
   }
 };
+ 
+export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
+  if (!token) throw new Error("Not authenticated");
+  if (!startMonth || !endMonth) {
+    throw new Error("Both startMonth and endMonth are required");
+  }
+ 
+  const response = await axios.get(`${backendApi}/shift/interval-summary`, {
+    params: { start_month:startMonth, end_month:endMonth },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+ 
+  return response.data;
+};
+ 
+ 
+// ===========================
+// ACCOUNT MANAGER HELPERS
+// ===========================
+ 
+// Fetch ALL data for account manager
+export const fetchClientSummaryByAM = async (token, managerName) => {
+  if (!token) throw new Error("Not authenticated");
+ 
+  try {
+    const response = await axios.get(`${backendApi}/shift/interval-summary`, {
+      params: { account_manager: managerName },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (err) {
+    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+    if (err?.message) throw new Error(err.message);
+    throw new Error("Unable to fetch account manager data.");
+  }
+};
+ 
+// Fetch ONE MONTH for account manager
+export const fetchClientSummaryByAMMonth = async (token, managerName, month) => {
+  if (!token) throw new Error("Not authenticated");
+ 
+  try {
+    const response = await axios.get(`${backendApi}/shift/interval-summary`, {
+      params: { account_manager: managerName, payroll_month: month },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (err) {
+    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+    if (err?.message) throw new Error(err.message);
+    throw new Error("Unable to fetch account manager data for month.");
+  }
+};
+ 
+// Fetch RANGE for account manager
+export const fetchClientSummaryByAMRange = async (token, managerName, startMonth, endMonth) => {
+  if (!token) throw new Error("Not authenticated");
+ 
+  try {
+    const response = await axios.get(`${backendApi}/shift/interval-summary`, {
+      params: { account_manager: managerName, start_month: startMonth, end_month: endMonth },
+      headers: { Authorization: `Bearer ${token}` },
+    });    
+    return response.data;
+  } catch (err) {
+    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+    if (err?.message) throw new Error(err.message);
+    throw new Error("Unable to fetch account manager data for range.");
+  }
+};
+ 
+ 
 
 
 export const fetchEmployeesByMonthRange = async (token, startMonth, endMonth) => {
@@ -168,43 +249,33 @@ export const fetchEmployeesByMonthRange = async (token, startMonth, endMonth) =>
 
   try {
     const response = await axios.get(url, {
-      params: {
-        start_month: startMonth,
-        end_month: endMonth,
-      },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    return response.data; // Full list (no pagination)
-  } catch (err) {
-    if (err?.response?.data?.detail) {
-      throw new Error(err.response.data.detail);
-    }
-    throw new Error("Failed to fetch month range data");
-  }
-};
-
-
-export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
-  if (!token) throw new Error("Not authenticated");
-
-  try {
-    const response = await axios.get(`${backendApi}/interval/get_interval_summary`, {
       params: { start_month: startMonth, end_month: endMonth },
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    return response.data || {};
+    console.log("Month range response:", response.data);
+
+    // Return empty array if no data
+    if (!Array.isArray(response.data) || response.data.length === 0) {
+      return [];
+    }
+
+    return response.data;
   } catch (err) {
-    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
-    if (err?.message) throw new Error(err.message);
-    throw new Error("Unable to fetch summary range.");
+    console.error(err);
+    // If API returns 404 / detail message
+    if (err?.response?.data?.detail) {
+      throw new Error(err.response.data.detail);
+    }
+    // fallback message
+    throw new Error(`No data found for month range ${startMonth} to ${endMonth}`);
   }
 };
 
+
 export const fetchHorizontalBarData = async (month) => {
   try {
-    const response = await axios.get(`${backendApi}/horizontal-bar`, {
+    const response = await axios.get(`${backendApi}/dashboard/horizontal-bar`, {
       params: { payroll_month: month },
     });
     return response.data.horizontal_bar;

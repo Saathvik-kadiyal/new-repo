@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { Typography, Checkbox, FormControlLabel } from "@mui/material";
+import { getClientColorMap } from "./colorloop";
 
 const months = [
   { value: "01", label: "January" },
@@ -20,6 +21,7 @@ const months = [
   { value: "11", label: "November" },
   { value: "12", label: "December" },
 ];
+// const clientColorMap = getClientColorMap(data.map(d => d.label));
 
 const COLORS = [
   "#4e79a7",
@@ -55,25 +57,35 @@ const ClientPieChartWithMonth = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("access_token");
-      const payrollMonth = `${dayjs().format("YYYY")}-${month}`;
-      const res = await fetchClientSummary(token, payrollMonth);
+      const durationMonth = `${dayjs().format("YYYY")}-${month}`;
+      const res = await fetchClientSummary(token, durationMonth);
 
-      const formatted = res.map((c, i) => ({
-        id: c.client,
-        label: c.client,
-        value:
-          (c.shift_a_days || 0) +
-          (c.shift_b_days || 0) +
-          (c.shift_c_days || 0) +
-          (c.prime_days || 0),
-        color: COLORS[i % COLORS.length],
-        details: c,
-      }));
+      const monthKey = Object.keys(res)[0];
+      const arr = res[monthKey];
 
+      let formatted = [];
+
+      if (arr && Array.isArray(arr)) {
+        formatted = arr.map((c, i) => {
+          const totalDays =
+            c.shift_a_days + c.shift_b_days + c.shift_c_days + c.prime_days;
+
+          return {
+            id: c.client,
+            label: c.client,
+            value: totalDays,
+            color: COLORS[i % COLORS.length],
+            details: c,
+          };
+        });
+      }
+
+      console.log(formatted);
       setData(formatted);
       setSelectedClient(null);
-      setClientDetails(null);
-    } catch {
+      setClientDetails(formatted);
+    } catch (err) {
+      console.error(err);
       setData([]);
     } finally {
       setLoading(false);
@@ -91,7 +103,7 @@ const ClientPieChartWithMonth = () => {
   useEffect(() => {
     if (selectedClient) {
       const found = data.find((d) => d.label === selectedClient);
-      setClientDetails(found?.details || null);
+      setClientDetails(found?.details || null); // store raw details, not wrapper object
     } else {
       setClientDetails(null);
     }
@@ -166,27 +178,30 @@ const ClientPieChartWithMonth = () => {
           }}
           className="max-h-60 overflow-y-scroll flex flex-col gap-1 pr-2 no-scrollbar"
         >
-          {data.map((item) => (
-            <FormControlLabel
-              key={item.id}
-              control={
-                <Checkbox
-                  checked={selectedClient === item.label}
-                  onChange={() =>
-                    setSelectedClient(
-                      selectedClient === item.label ? null : item.label
-                    )
-                  }
-                  style={{ color: item.color }}
-                />
-              }
-              label={
-                <span className="text-[13px] text-black">
-                  {item.label} — {item.value} days
-                </span>
-              }
-            />
-          ))}
+          {data
+   .filter((item) => item && item.value > 0) // remove falsy/undefined/null items
+  .map((item) => (
+    <FormControlLabel
+      key={item.id}
+      control={
+        <Checkbox
+          checked={selectedClient === item.label}
+          onChange={() =>
+            setSelectedClient(
+              selectedClient === item.label ? null : item.label
+            )
+          }
+          style={{ color: item.color }}
+        />
+      }
+      label={
+        <span className="text-[13px] text-black">
+          {item.label} — {item.value} shifts
+        </span>
+      }
+    />
+  ))}
+
         </div>
       </div>
     </div>

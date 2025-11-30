@@ -10,11 +10,20 @@ const EmployeeModal = ({ employee, onClose, loading }) => {
   const [data, setData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (employee) setData(employee);
   }, [employee]);
+
+  useEffect(() => {
+  if (success) {
+    const timer = setTimeout(() => setSuccess(""), 3000);
+    return () => clearTimeout(timer);
+  }
+}, [success]);
+
 
   if ((!employee && !loading) || !data) return null;
 
@@ -28,32 +37,38 @@ const EmployeeModal = ({ employee, onClose, loading }) => {
     setError("");
   };
 
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      setError("");
+ const handleSave = async () => {
+  try {
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    const token = localStorage.getItem("access_token");
+    const payload = {
+      shift_a: String(data.A || 0),
+      shift_b: String(data.B || 0),
+      shift_c: String(data.C || 0),
+      prime: String(data.PRIME || 0),
+    };
 
-      const token = localStorage.getItem("access_token");
+    await updateEmployeeShift(
+      token,
+      data.emp_id,
+      data.duration_month,
+      data.payroll_month,
+      payload
+    );
 
-      const payload = {
-        shift_a: String(data.A || 0),
-        shift_b: String(data.B || 0),
-        shift_c: String(data.C || 0),
-        prime: String(data.PRIME || 0),
-      };
+    setIsEditing(false);
+    setOnSave(true);
+    setSuccess("Shift updated successfully");
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setSaving(false);
+  }
+};
 
-      await updateEmployeeShift(token , data.emp_id,
-        data.duration_month,
-        data.payroll_month,payload);
 
-      setIsEditing(false);
-      setOnSave(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
   const fieldsToShow = { ...data };
   ["A", "B", "C", "PRIME", "emp_id", "emp_name"].forEach((key) => delete fieldsToShow[key]);
 
@@ -117,9 +132,10 @@ const EmployeeModal = ({ employee, onClose, loading }) => {
             ))}
           </div>
 
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+          {error && <p className="text-lg text-red-600 text-center">{error}</p>}
+{success && <p className="text-lg text-green-600 text-center">{success}</p>}
 
-          {/* Buttons */}
+
           <div className="flex justify-end gap-3 pt-3">
             {isEditing ? (
               <>
