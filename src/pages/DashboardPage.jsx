@@ -4,6 +4,11 @@ import HorizontalBarChart from "../visuals/HorizontalBarChart";
 import VerticalBarChart from "../visuals/VerticalBarChart";
 import GraphChart from "../visuals/GraphChart";
 
+const data = {
+  mar:{ },
+  apr:{}
+}
+
 const DashboardPage = () => {
   return (
     <div className="p-6 w-full h-full">

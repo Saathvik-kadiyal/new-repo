@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import Layout from "../Layout/Layout.jsx";
 import PrivateRoute from "./PrivateRoute.jsx";
+import Comparision from "../component/Comparision.jsx";
 
 // Lazy imports
 const DashboardPage = lazy(() => import("../pages/DashboardPage.jsx"));
@@ -13,10 +14,7 @@ const NotFound = lazy(() => import("../pages/NotFound.jsx"));
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Public route */}
       <Route path="/login" element={<LoginPage />} />
-
-      {/* Protected Layout with nested pages */}
       <Route
         element={
           <PrivateRoute>
@@ -29,6 +27,14 @@ const AppRoutes = () => {
           element={
             <Suspense fallback={<div className="p-6">Loading Dashboard...</div>}>
               <DashboardPage />
+            </Suspense>
+          }
+        />
+         <Route
+          path="comparison"
+          element={
+            <Suspense fallback={<div className="p-6">Loading Comparision.</div>}>
+              <Comparision />
             </Suspense>
           }
         />

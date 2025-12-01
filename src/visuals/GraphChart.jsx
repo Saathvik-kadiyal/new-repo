@@ -61,7 +61,6 @@ const GraphChart = () => {
       p={2}
       borderRadius={2}
     >
-      {/* Dropdown */}
       <Box display="flex" justifyContent="flex-end" mb={2}> 
   <FormControl sx={{ width: 150 }}>
     <Select

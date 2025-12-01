@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import DataTable from "../component/DataTable.jsx";
+import { Tooltip } from "@mui/material";
 import { useEmployeeData, UI_HEADERS } from "../hooks/useEmployeeData.jsx";
+
+import {
+  Box,
+  Button,
+  Typography,
+  Stack,
+  Modal,
+  Paper,
+  CircularProgress,
+} from "@mui/material";
 
 const FileInput = () => {
   const [searchState, setSearchState] = useState({ query: "", searchBy: "" });
@@ -17,116 +28,143 @@ const FileInput = () => {
     fetchDataFromBackend,
     downloadExcel,
     downloadErrorExcel,
-    success
+    success,
   } = useEmployeeData();
 
-const handleFileChange = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  setFileName(file.name);
-  fetchDataFromBackend(file); 
-};
-
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setFileName(file.name);
+    fetchDataFromBackend(file);
+  };
 
   useEffect(() => {
-  if (errorFileLink) setErrorModalOpen(true);
-}, [errorFileLink]);
-useEffect(() => {
-  if (success) {
-    getProcessedData(0, 10);
-  }
-}, [success]);
+    if (errorFileLink) setErrorModalOpen(true);
+  }, [errorFileLink]);
 
+  useEffect(() => {
+    if (success) getProcessedData(0, 10);
+  }, [success]);
 
   return (
-    <div className="w-full justify-center pt-4">
-      <h2 className="text-xl font-semibold mb-4 text-gray-800">
-        Employee Data Upload
-      </h2>
+    <Box sx={{ width: "100%", pt: 2, pb:4 }}>
+      <Typography variant="h5" fontWeight={600} mb={2} color="text.primary">
+        Shift Allowance Data
+      </Typography>
 
-      <div className="flex items-center gap-3 mb-6 flex-wrap justify-between">
-        <div className="flex gap-2 items-center">
-          <label
-            htmlFor="file-upload"
-            className="inline-flex items-center justify-center px-4 py-2 bg-blue-500 text-white text-[12px] font-medium rounded-lg shadow-md cursor-pointer hover:bg-blue-700 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 transition-all duration-150"
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={2}
+        alignItems="center"
+        justifyContent="space-between"
+        mb={3}
+      >
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Tooltip title="Upload an Excel file">
+          <Button
+            variant="contained"
+            component="label"
+            sx={{ textTransform: "none", px: 2, py: 1  }}
           >
             Upload Excel
-          </label>
-
-          <input
-            id="file-upload"
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleFileChange}
-            className="hidden cursor-pointer"
-          />
-        </div>
-
-        <button
-  onClick={() => downloadExcel(searchState)}
-  disabled={loading}
-  className={`cursor-pointer inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg shadow-md transition-all duration-150 ${
-    loading
-      ? "bg-gray-400 cursor-not-allowed"
-      : "bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white text-[12px] focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1"
-  }`}
->
-  {rows.length === 0 ? "Download Template" : "Download Data"}
-</button>
-
-
-
-      </div>
-{success && (
-  <p className="text-green-600 text-sm mb-2 font-medium">
-    {success}
-  </p>
-)}
-
-      {loading && <p className="text-blue-500 text-sm mb-2">Loading...</p>}
-      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-
-      {/* Error Modal */}
-      {errorModalOpen && errorFileLink && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-lg relative">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800">
-              File Upload Errors
-            </h3>
-            <p className="text-sm text-gray-700 mb-4">
-              Some rows could not be processed. Please download the error file
-              for details.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  downloadErrorExcel(errorFileLink);
-                  setErrorModalOpen(false);
-                }}
-                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-all duration-150"
-              >
-                Download Error File
-              </button>
-              <button
-                onClick={() => setErrorModalOpen(false)}
-                className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-all duration-150"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              hidden
+              onChange={handleFileChange}
+            />
+          </Button>
+          </Tooltip>
+          {fileName && (
+            <Typography variant="body2" color="text.secondary">
+              {fileName}
+            </Typography>
+          )}
+        </Stack>
+        <Tooltip title="Download sample Excel format">
+        <Button
+          variant="outlined"
+          size="small"
+          disabled={loading}
+          onClick={downloadExcel}
+          sx={{ textTransform: "none", px: 2, py: 1  }}
+          color="success"
+        >
+          {loading ? <CircularProgress size={18} sx={{ color: "#fff" }} /> : "Download Template"}
+        </Button>
+        </Tooltip>
+      </Stack>
+      {success && (
+        <Typography color="success.main" mb={1} fontWeight={500}>
+          {success}
+        </Typography>
       )}
 
-      <DataTable
-  headers={UI_HEADERS}
-  rows={rows}
-  totalRecords={totalRecords}
-  fetchPage={getProcessedData}
-  onSearchChange={(s) => setSearchState(s)}
-/>
+      {loading && (
+        <Typography color="primary.main" mb={1}>
+          Loading...
+        </Typography>
+      )}
 
-    </div>
+      {error && (
+        <Typography color="error.main" mb={1}>
+          {error}
+        </Typography>
+      )}
+
+      <Modal open={errorModalOpen} onClose={() => setErrorModalOpen(false)}>
+        <Box
+          component={Paper}
+          sx={{
+            width: 450,
+            p: 4,
+            mx: "auto",
+            mt: "15vh",
+            borderRadius: 2,
+            outline: "none",
+          }}
+        >
+          <Typography variant="h6" fontWeight={600} mb={2}>
+            File Upload Errors
+          </Typography>
+          <Typography variant="body2" mb={3}>
+            Some rows could not be processed. Please download the error file
+            for details.
+          </Typography>
+
+          <Stack direction="row" spacing={2} justifyContent="flex-end">
+            <Button
+              variant="contained"
+              color="warning"
+              sx={{ textTransform: "none" }}
+              onClick={() => {
+                downloadErrorExcel(errorFileLink);
+                setErrorModalOpen(false);
+              }}
+            >
+              Download Error File
+            </Button>
+
+            <Button
+              variant="outlined"
+              sx={{ textTransform: "none" }}
+              onClick={() => setErrorModalOpen(false)}
+            >
+              Close
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
+
+      {/* Data Table */}
+      <DataTable
+        headers={UI_HEADERS}
+        rows={rows}
+        totalRecords={totalRecords}
+        fetchPage={getProcessedData}
+        onSearchChange={(s) => setSearchState(s)}
+      />
+    </Box>
   );
 };
 

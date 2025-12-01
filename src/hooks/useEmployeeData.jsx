@@ -13,7 +13,7 @@ export const UI_HEADERS = [
   "Emp ID",
   "Emp Name",
   "Department",
-  "Project Code",
+  "Shift Details",
   "Account Manager",
   "Client",
   "Duration Month",
@@ -55,6 +55,7 @@ const FIELD_MAP = {
   client: "Client",
   duration_month: "Duration Month",
   payroll_month: "Payroll Month",
+  shift_details:"Shift Details"
 };
 
 const backendApi = import.meta.env.VITE_BACKEND_API;
@@ -338,7 +339,6 @@ const downloadSearchData = useCallback(async (searchState) => {
     const token = localStorage.getItem("access_token");
     const params = {};
 
-    /** ---------- Month Range ---------- */
     if (searchState.startMonth) {
       params.start_month = searchState.startMonth;
       if (searchState.endMonth) params.end_month = searchState.endMonth;
