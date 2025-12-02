@@ -12,15 +12,19 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  Paper,
 } from "@mui/material";
+import Slider from "@mui/material/Slider";
+import { getClientsAndDepartments } from "../utils/helper";
 
 const Comparision = () => {
-  const [clients, setClients] = useState(["ATD", "Roche"]);
+  const [clients, setClients] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [selectedClient, setSelectedClient] = useState("ATD");
-  const [selectedDepartment, setSelectedDepartment] = useState([]);
+  const [selectedClient, setSelectedClient] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState(["All"]);
   const [highlightMonth, setHighlightMonth] = useState(null);
+  const [monthRange, setMonthRange] = useState([null, null]);
+  const [clientAndDepartmentObject, setClientAndDepartmentObject] =
+    useState(null);
 
   const data = {
     "2025-03": {
@@ -155,20 +159,73 @@ const Comparision = () => {
     }
   };
 
+  const monthKeys = Object.keys(data);
+  const allDepartments = Array.from(
+    new Set(monthKeys.flatMap((m) => Object.keys(data[m])))
+  );
+
+const handleMonthRange = (e, newValue, activeThumb) => {
+  if (monthRange[0] === null) {
+    setMonthRange([newValue[0], newValue[0]]);
+    return;
+  }
+  let start = monthRange[0];
+  let end = monthRange[1];
+
+  if (activeThumb === 0) {
+    start = Math.min(newValue[0], end);
+  } else {
+    end = Math.max(newValue[1], start);
+  }
+
+  setMonthRange([start, end]);
+};
+
+
   useEffect(() => {
     const handleClickOutside = () => setHighlightMonth(null);
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const monthKeys = Object.keys(data);
-  const allDepartments = Array.from(
-    new Set(monthKeys.flatMap((m) => Object.keys(data[m])))
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      const res = await getClientsAndDepartments();
+      setClientAndDepartmentObject(res.data);
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    let clients = [];
+    if (clientAndDepartmentObject) {
+      clientAndDepartmentObject.map((details) => {
+        clients.push(details.client);
+      });
+      setClients(clients);
+    }
+  }, [clientAndDepartmentObject]);
+
+  useEffect(() => {
+    if (clientAndDepartmentObject) {
+      clientAndDepartmentObject.map((details, i) => {
+        if (details.client == selectedClient) {
+          setDepartments(details.departments);
+        }
+      });
+    }
+  }, [selectedClient]);
+  console.log(selectedDepartment);
+
+  useEffect(() => {
+    if (clients.length > 0 && selectedClient === "") {
+      setSelectedClient(clients[0]);
+    }
+  }, [clients]);
 
   return (
     <Box>
-      <Box sx={{ display: "flex", flexDirection: "row", gap: 2 }}>
+      <Box sx={{ display: "flex", flexDirection: "row", gap: 2,alignItems:"center" }}>
         <Box>
           <FormControl sx={{ width: 200 }}>
             <InputLabel>Client</InputLabel>
@@ -187,14 +244,37 @@ const Comparision = () => {
         </Box>
 
         <Box>
-          <FormControl sx={{ width: 200 }}>
+          <FormControl sx={{ width: 250 }}>
             <InputLabel>Department</InputLabel>
             <Select
-              value={selectedDepartment}
+              multiple
               label="Department"
-              onChange={(e) => setSelectedDepartment(e.target.value)}
+              value={selectedDepartment}
+              onChange={(e) => {
+                let value = e.target.value;
+                if (!Array.isArray(value)) value = [value];
+
+                const lastClicked = value[value.length - 1];
+                if (lastClicked === "All") {
+                  setSelectedDepartment(["All"]);
+                  return;
+                }
+                if (selectedDepartment.includes("All")) {
+                  setSelectedDepartment([lastClicked]);
+                  return;
+                }
+                if (value.length === 0) {
+                  setSelectedDepartment(["All"]);
+                  return;
+                }
+                setSelectedDepartment(value);
+              }}
+              renderValue={(selected) =>
+                selected.includes("All") ? "All" : selected.join(", ")
+              }
             >
-              {allDepartments.map((dept) => (
+              <MenuItem value="All">All</MenuItem>
+              {departments.map((dept) => (
                 <MenuItem key={dept} value={dept}>
                   {dept}
                 </MenuItem>
@@ -202,139 +282,165 @@ const Comparision = () => {
             </Select>
           </FormControl>
         </Box>
-      </Box>
+        <Box>
+          <Box sx={{ width: 280}}>
+  <Typography fontWeight="bold">Month Range</Typography>
+  <Slider
+    value={[monthRange[0] ?? 0, monthRange[1] ?? 0]}
+    min={0}
+    max={11}
+    step={1}
+    onChange={handleMonthRange}
+     valueLabelDisplay={monthRange[0] === null ? "off" : "auto"}
+    valueLabelFormat={(v) => monthNames[v]}
+      disableSwap
+  />
+  <Typography mt={1}>
+    {monthNames[monthRange[0]]} – {monthNames[monthRange[1]]}
+  </Typography>
+  
+</Box>
 
-      <Box sx={{display:"flex", flexDirection:"column", alignItems:"center"}}>
-        <Box mt={4}>
-        <Typography>Department Allowance</Typography>
-        <BarChart
-          dataset={dataset}
-          series={series}
-          xAxis={[{ dataKey: "year" }]}
-          onItemClick={handleBarClick}
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-          {...config}
-        />
+        </Box>
       </Box>
 
       <Box
-        mt={4}
-        sx={{
-          p: 2,
-          borderRadius: 2,
-          overflow: "hidden",
-          maxWidth:900
-        }}
+        sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
       >
-        <Table
+        <Box mt={4}>
+          <Typography>Department Allowance</Typography>
+          <BarChart
+            dataset={dataset}
+            series={series}
+            xAxis={[{ dataKey: "year" }]}
+            onItemClick={handleBarClick}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            {...config}
+          />
+        </Box>
+
+        <Box
+          mt={4}
           sx={{
-            borderCollapse: "collapse",
-            "& td, & th": {
-              border: "1px solid #ddd",
-              padding: "8px 12px",
-              textAlign: "center",
-            },
+            p: 2,
+            borderRadius: 2,
+            overflow: "hidden",
+            maxWidth: 900,
           }}
         >
-          <TableHead>
-            <TableRow>
-              <TableCell
-                sx={{
-                  fontWeight: "bold",
-               borderBottom: "none !important",
-    borderRight: "none !important",
-    borderLeft: "none !important",
-    borderTop: "none !important",
-
-                  width: 150,
-                }}
-              >
-                
-              </TableCell>
-
-              <TableCell
-                sx={{
-                  width: 150,
-                  borderBottom: "none !important",
-    borderRight: "none !important",
-    borderLeft: "none !important",
-    borderTop: "none !important",
-
-                }}
-              >
-              </TableCell>
-
-              {monthKeys.map((m) => (
+          <Table
+            sx={{
+              borderCollapse: "collapse",
+              "& td, & th": {
+                border: "1px solid #ddd",
+                padding: "8px 12px",
+                textAlign: "center",
+              },
+            }}
+          >
+            <TableHead>
+              <TableRow>
                 <TableCell
-                  key={m}
                   sx={{
                     fontWeight: "bold",
-                    background: "black",
-                    color: "white",
+                    borderBottom: "none !important",
+                    borderRight: "none !important",
+                    borderLeft: "none !important",
+                    borderTop: "none !important",
+
                     width: 150,
-                    backgroundColor: highlightMonth === m ? "#ffe36e" : "black",
-                    color: highlightMonth === m ? "black" : "white",
-                    transition: "0.3s",
-                    cursor:"pointer"
                   }}
-                >
-                  {formatMonth(m)}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
+                ></TableCell>
 
-          <TableBody>
-            {[selectedClient].map((client) => {
-              const departmentsForClient = allDepartments;
-              return departmentsForClient.map((dept, idx) => {
-                return (
-                  <TableRow key={`${client}-${dept}`}>
-                    {idx === 0 && (
-                      <TableCell
-                        sx={{ fontWeight: 500, background: "#f5f5f5" }}
-                        rowSpan={departmentsForClient.length}
-                      >
-                        {client}
-                      </TableCell>
-                    )}
+                <TableCell
+                  sx={{
+                    width: 150,
+                    borderBottom: "none !important",
+                    borderRight: "none !important",
+                    borderLeft: "none !important",
+                    borderTop: "none !important",
+                  }}
+                ></TableCell>
 
-                    <TableCell
-                      sx={{
-                        fontWeight: "bold",
-                        background: "#fafafa",
-                        textTransform: "capitalize",
-                        cursor:"pointer"
-                      }}
-                    >
-                      {dept}
-                    </TableCell>
+                {monthKeys.map((m) => (
+                  <TableCell
+                    key={m}
+                    sx={{
+                      fontWeight: "bold",
+                      background: "black",
+                      color: "white",
+                      width: 150,
+                      backgroundColor:
+                        highlightMonth === m ? "#ffe36e" : "black",
+                      color: highlightMonth === m ? "black" : "white",
+                      transition: "0.3s",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {formatMonth(m)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
 
-                    {monthKeys.map((m, i) => {
-                      const val = data[m][dept];
-                      const value = val ? `$ ${val.total_allowance}` : "—";
-                      return (
+            <TableBody>
+              {[selectedClient].map((client) => {
+                const departmentsForClient =
+                  selectedDepartment.length === 0 ||
+                  selectedDepartment.includes("All")
+                    ? departments
+                    : selectedDepartment;
+
+                return departmentsForClient.map((dept, idx) => {
+                  return (
+                    <TableRow key={`${client}-${dept}`}>
+                      {idx === 0 && (
                         <TableCell
-                          key={i}
-                          sx={{
-                            backgroundColor:
-                              highlightMonth === m ? "#ffe36e" : "transparent",
-                            transition: "0.3s",
-                          }}
+                          sx={{ fontWeight: 500, background: "#f5f5f5" }}
+                          rowSpan={departmentsForClient.length}
                         >
-                          {value}
+                          {client}
                         </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                );
-              });
-            })}
-          </TableBody>
-        </Table>
-      </Box>
+                      )}
+
+                      <TableCell
+                        sx={{
+                          fontWeight: "bold",
+                          background: "#fafafa",
+                          textTransform: "capitalize",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {dept}
+                      </TableCell>
+
+                      {monthKeys.map((m, i) => {
+                        const val = data[m][dept];
+                        const value = val ? `$ ${val.total_allowance}` : "—";
+                        return (
+                          <TableCell
+                            key={i}
+                            sx={{
+                              backgroundColor:
+                                highlightMonth === m
+                                  ? "#ffe36e"
+                                  : "transparent",
+                              transition: "0.3s",
+                            }}
+                          >
+                            {value}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                });
+              })}
+            </TableBody>
+          </Table>
+        </Box>
       </Box>
     </Box>
   );

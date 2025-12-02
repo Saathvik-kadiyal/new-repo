@@ -2,7 +2,8 @@ import axios from "axios";
 
 const backendApi = import.meta.env.VITE_BACKEND_API;
 
-// Generic debounce
+const token = localStorage.getItem("auth_token")
+
 export const debounce = (fn, delay) => {
   let timer;
   return (...args) => {
@@ -11,7 +12,6 @@ export const debounce = (fn, delay) => {
   };
 };
 
-// Fetch employees (paginated, with optional search)
 export const fetchEmployees = async ({
   token,
   start = 0,
@@ -23,7 +23,6 @@ export const fetchEmployees = async ({
 
   let url = `${backendApi}/display/?start=${start}&limit=${limit}`;
 
-  // Search URL logic
   if (searchBy && searchQuery.trim().length > 0) {
     const params = new URLSearchParams();
     if (searchBy === "Emp ID") params.append("emp_id", searchQuery);
@@ -51,7 +50,6 @@ export const fetchEmployees = async ({
 };
 
 
-// Fetch individual employee details
 export const fetchEmployeeDetail = async (token,emp_id,duration_month,payroll_month) => {
   if (!token) throw new Error("Not authenticated");
   const payload = {
@@ -183,12 +181,6 @@ export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
   return response.data;
 };
  
- 
-// ===========================
-// ACCOUNT MANAGER HELPERS
-// ===========================
- 
-// Fetch ALL data for account manager
 export const fetchClientSummaryByAM = async (token, managerName) => {
   if (!token) throw new Error("Not authenticated");
  
@@ -205,7 +197,6 @@ export const fetchClientSummaryByAM = async (token, managerName) => {
   }
 };
  
-// Fetch ONE MONTH for account manager
 export const fetchClientSummaryByAMMonth = async (token, managerName, month) => {
   if (!token) throw new Error("Not authenticated");
  
@@ -222,7 +213,6 @@ export const fetchClientSummaryByAMMonth = async (token, managerName, month) => 
   }
 };
  
-// Fetch RANGE for account manager
 export const fetchClientSummaryByAMRange = async (token, managerName, startMonth, endMonth) => {
   if (!token) throw new Error("Not authenticated");
  
@@ -238,9 +228,6 @@ export const fetchClientSummaryByAMRange = async (token, managerName, startMonth
     throw new Error("Unable to fetch account manager data for range.");
   }
 };
- 
- 
-
 
 export const fetchEmployeesByMonthRange = async (token, startMonth, endMonth) => {
   if (!token) throw new Error("Not authenticated");
@@ -255,19 +242,15 @@ export const fetchEmployeesByMonthRange = async (token, startMonth, endMonth) =>
 
     console.log("Month range response:", response.data);
 
-    // Return empty array if no data
     if (!Array.isArray(response.data) || response.data.length === 0) {
       return [];
     }
 
     return response.data;
   } catch (err) {
-    console.error(err);
-    // If API returns 404 / detail message
     if (err?.response?.data?.detail) {
       throw new Error(err.response.data.detail);
     }
-    // fallback message
     throw new Error(`No data found for month range ${startMonth} to ${endMonth}`);
   }
 };
@@ -280,12 +263,21 @@ export const fetchHorizontalBarData = async (month) => {
     });
     return response.data.horizontal_bar;
   } catch (error) {
-    console.error("Error fetching horizontal bar data:", error);
-    return {};
+    return error;
   }
 };
 
-// Helper to get month string format YYYY-MM
 export const getMonthString = (monthIndex) => {
   return dayjs().month(monthIndex).format("YYYY-MM");
 };
+
+export const getClientsAndDepartments = async()=>{
+  try {
+    const response = await axios.get(`${backendApi}/client-departments`,{
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return response
+  } catch (error) {
+    return error
+  }
+}
