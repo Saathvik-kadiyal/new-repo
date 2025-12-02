@@ -1,214 +1,274 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Box,
+  Button,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField,
+  Typography,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Collapse,
+  IconButton,
+} from "@mui/material";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
- 
-import {
-  fetchClientSummary,
-  fetchClientSummaryRange,
-  fetchClientSummaryByAM,
-  fetchClientSummaryByAMMonth,
-  fetchClientSummaryByAMRange,
-} from "../utils/helper";
- 
+import { debounce, fetchClientComparison, fetchClients } from "../utils/helper";
+
 const ClientSummaryPage = () => {
-  const [summaryData, setSummaryData] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
- 
+  const [searchBy, setSearchBy] = useState("");
   const [startMonth, setStartMonth] = useState(null);
   const [endMonth, setEndMonth] = useState(null);
-  const [accountManager, setAccountManager] = useState("");
- 
-  const fetchSummary = async () => {
-    setLoading(true);
-    setError("");
-    const token = localStorage.getItem("access_token");
- 
-    try {
-      let data = {};
- 
-      if (accountManager) {
-        // Account manager selected
-        if (!startMonth) {
-          data = await fetchClientSummaryByAM(token, accountManager);
-        } else if (!endMonth || startMonth.isSame(endMonth, "month")) {
-          data = await fetchClientSummaryByAMMonth(
-            token,
-            accountManager,
-            startMonth.format("YYYY-MM")
-          );
-        } else {
-          data = await fetchClientSummaryByAMRange(
-            token,
-            accountManager,
-            startMonth.format("YYYY-MM"),
-            endMonth.format("YYYY-MM")
-          );
-        }
-      } else {
-        if (!startMonth) {
-          let res = await fetchClientSummary(token);
- 
-          if (!res || Object.keys(res).length === 0) {
-            res = await fetchClientSummary(token);
-          }
-          data = res || {};
-        }
-         else if (startMonth && !endMonth) {
-          data = await fetchClientSummary(token, startMonth.format("YYYY-MM"));
-        } else {
-          data = await fetchClientSummaryRange(
-            token,
-            startMonth.format("YYYY-MM"),
-            endMonth.format("YYYY-MM")
-          );
-        }
+  const [selectedClient, setSelectedClient] = useState("");
+  const [clientsList, setClientsList] = useState([]);
+  const [clientData, setClientData] = useState({});
+  const [openDept, setOpenDept] = useState({});
+
+  const debouncedFetch = useCallback(
+    debounce(async (search, start, end, selectedClient) => {
+      try {
+        const res = await fetchClientComparison(
+          search,
+          start ? dayjs(start).format("YYYY-MM") : "",
+          end ? dayjs(end).format("YYYY-MM") : "",
+          selectedClient
+        );
+        setClientData(res);
+      } catch (err) {
+        console.log(err);
       }
- 
-      setSummaryData(data || {});
-    } catch (err) {
-      setError(err.message || "Unable to fetch summary data.");
-    } finally {
-      setLoading(false);
-    }
-  };
- 
-  console.log(summaryData)
- 
+    }, 600),
+    []
+  );
+
   useEffect(() => {
-    fetchSummary();
-  }, [startMonth, endMonth, accountManager]);
- 
-  const allEmpty = Object.values(summaryData).every((list) => !list || list.length === 0);
- 
-  const clearFilters = () => {
+    const getClients = async () => {
+      try {
+        const res = await fetchClients();
+        setClientsList(res.clients);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+    getClients();
+  }, []);
+
+  useEffect(() => {
+    if (clientsList.length > 0) setSelectedClient(clientsList[0]);
+  }, [clientsList]);
+
+  useEffect(() => {
+    if (!selectedClient) return;
+    debouncedFetch(searchBy, startMonth, endMonth, selectedClient);
+  }, [searchBy, startMonth, endMonth, selectedClient]);
+
+  const handleClear = () => {
+    setSearchBy("");
     setStartMonth(null);
     setEndMonth(null);
-    setAccountManager("");
+    setSelectedClient(clientsList[0]);
   };
- 
+
+  const toggleDept = (key) => {
+    setOpenDept((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const colWidths = {
+    dept: 280,
+    headCount: 120,
+    accountManager: 220,
+    A: 80,
+    B: 80,
+    C: 80,
+    PRIME: 80,
+    total: 120,
+  };
+
+  const tableCellStyle = (width) => ({
+    border: "1px solid #ccc",
+    padding: "8px 12px",
+    width,
+    maxWidth: width,
+    minWidth: width,
+    color: "#000000",
+  });
+
+  const rightCellStyle = (width) => ({
+    ...tableCellStyle(width),
+    textAlign: "right",
+  });
+
+  const headerCellStyle = (width) => ({
+    ...tableCellStyle(width),
+    textAlign: "center",
+    fontWeight: "bold",
+    backgroundColor: "#000000",
+    color: "#ffffff",
+  });
+
   return (
-    <div className="p-6">
-      {/* HEADER & FILTERS */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-2">
-        <h2 className="text-xl font-bold">Client Summary</h2>
- 
-        <div className="flex gap-2 items-center">
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              views={["year", "month"]}
-              label="Start Month"
-              value={startMonth}
-              onChange={setStartMonth}
-              inputFormat="YYYY-MM"
-              disableFuture
-              maxDate={dayjs()}
-              slotProps={{ textField: { size: "small", className: "w-40" } }}
-            />
-            <DatePicker
-              views={["year", "month"]}
-              label="End Month (Optional)"
-              value={endMonth}
-              onChange={setEndMonth}
-              inputFormat="YYYY-MM"
-              disableFuture
-              minDate={startMonth || undefined}
-              maxDate={dayjs()}
-              slotProps={{ textField: { size: "small", className: "w-40" } }}
-            />
-          </LocalizationProvider>
- 
-          {/* Account Manager Input */}
-          <input
-            type="text"
-            placeholder="Search Account Manager"
-            value={accountManager}
-            onChange={(e) => setAccountManager(e.target.value)}
-            className="border border-gray-300 rounded-md px-2 py-1 w-40 text-sm"
-          />
- 
-          {/* Clear Button */}
-          <button
-            onClick={clearFilters}
-            className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+    <Box sx={{ padding: 2, backgroundColor: "#f9f9f9" }}>
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Client Summary
+      </Typography>
+
+      {/* Filters */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          gap: 2,
+          mb: 3,
+          alignItems: "center",
+        }}
+      >
+        <FormControl sx={{ width: 200, py: 0.5 }}>
+          <InputLabel>Client</InputLabel>
+          <Select
+            value={selectedClient}
+            label="Client"
+            onChange={(e) => setSelectedClient(e.target.value)}
+            size="small"
           >
-            Clear
-          </button>
-        </div>
-      </div>
- 
-      {/* MAIN CONTENT */}
-      {loading ? (
-        <p>Loading summary data...</p>
-      ) : error ? (
-        <p className="text-red-500 text-center">{error}</p>
-      ) : allEmpty ? (
-        <p className="text-center text-red-500 font-semibold py-6 text-lg">
-          There is no data from{" "}
-          {startMonth ? startMonth.format("YYYY-MM") : dayjs().subtract(1, "month").format("YYYY-MM")}
-          {endMonth ? ` to ${endMonth.format("YYYY-MM")}` : ""}
-        </p>
-      ) : (
-       Object.entries(summaryData).map(([month, rows]) => (
-  <div
-    key={month}
-    className="mb-8 bg-white p-4 rounded-xl shadow-md border border-gray-200"
-  >
-    <h3 className="text-lg font-bold mb-3 text-gray-800">{month}</h3>
- 
-    {Array.isArray(rows) && rows.length > 0 && typeof rows[0] === "string" ? (
-      <p className="text-red-500 italic">{rows[0]}</p>
- 
-    ) : rows.length === 0 ? (
-      <p className="text-red-500 italic">No data for this month.</p>
- 
-    ) : (
-      // ✔ CASE 3: Table data
-      <div className="overflow-x-auto">
-        <table className="border-collapse border border-gray-300 w-full text-sm text-gray-700 rounded-lg overflow-hidden">
-          <thead>
-            <tr className="bg-gray-100">
-              {Object.keys(rows[0]).map((key) => (
-                <th
-                  key={key}
-                  className="border px-2 py-2 capitalize text-left font-semibold"
-                >
-                  {key.replace(/_/g, " ")}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((item, idx) => {
-              const isTotalRow = item.client === "TOTAL";
-              return (
-                <tr
-                  key={idx}
-                  className={isTotalRow ? "bg-gray-200 font-bold" : "hover:bg-gray-50"}
-                >
-                  {Object.keys(item).map((key) => (
-                    <td key={key} className="border px-2 py-1">
-                      {item[key]}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </div>
-))
- 
-      )}
-    </div>
+            {clientsList.map((client) => (
+              <MenuItem key={client} value={client}>
+                {client}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <TextField
+          size="small"
+          placeholder="Search by Account Manager"
+          sx={{ width: 220 }}
+          value={searchBy}
+          onChange={(e) => setSearchBy(e.target.value)}
+        />
+
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            views={["year", "month"]}
+            label="Start Month"
+            value={startMonth}
+            onChange={(newValue) => setStartMonth(newValue)}
+            slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
+          />
+          <DatePicker
+            views={["year", "month"]}
+            label="End Month"
+            value={endMonth}
+            onChange={(newValue) => setEndMonth(newValue)}
+            slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
+          />
+        </LocalizationProvider>
+
+        <Button variant="outlined" color="error" onClick={handleClear}>
+          Clear
+        </Button>
+      </Box>
+
+      {Object.entries(clientData)
+  .filter(([month]) => month !== "horizontal_total")
+  .map(([month, monthData]) => {
+    const formattedMonth = dayjs(month + "-01").format("MMM YYYY");
+    return (
+      <Box key={month} sx={{ mb: 4 }}>
+        <Typography sx={{ mb: 2, fontWeight: "bold" }}>
+          {formattedMonth}
+        </Typography>
+
+        <Table sx={{ borderCollapse: "collapse", width: "100%" }}>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={headerCellStyle(colWidths.dept)}>Department</TableCell>
+              <TableCell sx={headerCellStyle(colWidths.headCount)}>Head Count</TableCell>
+              <TableCell sx={headerCellStyle(colWidths.accountManager)}>Account Manager</TableCell>
+              <TableCell sx={headerCellStyle(colWidths.A)}>A</TableCell>
+              <TableCell sx={headerCellStyle(colWidths.B)}>B</TableCell>
+              <TableCell sx={headerCellStyle(colWidths.C)}>C</TableCell>
+              <TableCell sx={headerCellStyle(colWidths.PRIME)}>PRIME</TableCell>
+              <TableCell sx={headerCellStyle(colWidths.total)}>Total Allowance</TableCell>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {monthData.message ? (
+              <TableRow>
+                <TableCell colSpan={8} sx={{ textAlign: "center", fontStyle: "italic" }}>
+                  Data not present for this month
+                </TableCell>
+              </TableRow>
+            ) : (
+              Object.entries(monthData)
+                .filter(([deptName, deptData]) => deptData.emp)
+                .map(([deptName, deptData]) => {
+                  const key = `${month}-${deptName}`;
+                  return (
+                    <React.Fragment key={key}>
+                      {/* Department Row */}
+                      <TableRow sx={{ backgroundColor: "#e0e0e0" }}>
+                        <TableCell sx={{ ...tableCellStyle(colWidths.dept), fontWeight: "bold", cursor: "pointer" }}>
+                          {deptName}
+                          {deptData.emp.length > 0 && (
+                            <IconButton size="small" onClick={() => toggleDept(key)} sx={{ ml: 2, verticalAlign: "middle" }}>
+                              {openDept[key] ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                            </IconButton>
+                          )}
+                        </TableCell>
+                        <TableCell sx={rightCellStyle(colWidths.headCount)}>{deptData.head_count}</TableCell>
+                        <TableCell sx={rightCellStyle(colWidths.accountManager)} />
+                        <TableCell sx={rightCellStyle(colWidths.A)}>{deptData.dept_total_A}</TableCell>
+                        <TableCell sx={rightCellStyle(colWidths.B)}>{deptData.dept_total_B}</TableCell>
+                        <TableCell sx={rightCellStyle(colWidths.C)}>{deptData.dept_total_C}</TableCell>
+                        <TableCell sx={rightCellStyle(colWidths.PRIME)}>{deptData.dept_total_PRIME}</TableCell>
+                        <TableCell sx={rightCellStyle(colWidths.total)}>{deptData.total_allowance}</TableCell>
+                      </TableRow>
+
+                      <TableRow>
+                        <TableCell colSpan={8} sx={{ padding: 0 }}>
+                          <Collapse in={openDept[key]} timeout="auto" unmountOnExit>
+                            <Table size="small" sx={{ borderCollapse: "collapse", width: "100%" }}>
+                              <TableBody>
+                                {deptData.emp.map((emp) => (
+                                  <TableRow key={emp.emp_id} sx={{ backgroundColor: "#ffffff" }}>
+                                    <TableCell sx={{ ...tableCellStyle(colWidths.dept), fontWeight: "normal", textAlign: "left", paddingLeft: 16 }}>
+                                      {emp.emp_name}
+                                    </TableCell>
+                                    <TableCell sx={rightCellStyle(colWidths.headCount)}>1</TableCell>
+                                    <TableCell sx={rightCellStyle(colWidths.accountManager)}>{emp.account_manager}</TableCell>
+                                    <TableCell sx={rightCellStyle(colWidths.A)}>{emp.A}</TableCell>
+                                    <TableCell sx={rightCellStyle(colWidths.B)}>{emp.B}</TableCell>
+                                    <TableCell sx={rightCellStyle(colWidths.C)}>{emp.C}</TableCell>
+                                    <TableCell sx={rightCellStyle(colWidths.PRIME)}>{emp.PRIME}</TableCell>
+                                    <TableCell sx={rightCellStyle(colWidths.total)}>{emp.total_allowance}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </Collapse>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
+                  );
+                })
+            )}
+          </TableBody>
+        </Table>
+      </Box>
+    );
+  })}
+
+    </Box>
   );
 };
- 
+
 export default ClientSummaryPage;
- 
- 
- 

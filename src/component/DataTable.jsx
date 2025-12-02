@@ -11,7 +11,7 @@ import {
   Typography,
   Button,
 } from "@mui/material";
-import { X, Eye, Info } from "lucide-react";
+import { X, Eye } from "lucide-react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -47,9 +47,6 @@ const DataTable = ({ headers }) => {
 
   const pattern = /^[A-Za-z]{2}[A-Za-z0-9-_ ]*$/;
 
-  const openInfo = (data)=>{
-setInfo(data)
-  }
 
 
   const columns = [
@@ -97,11 +94,6 @@ setInfo(data)
                     "&:hover": { opacity: 0.7 },
                   }}
                 >
-                  <Info size={16} color="blue" onClick={()=>{
-                  const formatted = Object.entries(shift).map(([k, v]) => ({ [k]: v }));
-          openInfo(formatted);
-          setInfoOpen(true)
-                  }} />
                 </Box>
               </Box>
             );
