@@ -151,21 +151,35 @@ export const updateEmployeeShift = async (token , emp_id,
 };
 
 
-export const fetchClientSummary = async (token,month="") => {
+export const fetchClientSummary = async (
+  token,
+  client = "ALL",
+  account_manager = "",
+  start_month = "",
+  end_month = ""
+) => {
   if (!token) throw new Error("Not authenticated");
- console.log(month)
+
   try {
-    const response = await axios.get(`${backendApi}/shift/interval-summary`, {
-      params:{start_month:month},
+    const response = await axios.get(`${backendApi}/client-summary`, {
       headers: { Authorization: `Bearer ${token}` },
+      params: {
+        client,
+        account_manager,
+        start_month,
+        end_month,
+      },
     });
     return response.data;
   } catch (err) {
-    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
-    if (err?.message) throw new Error(err.message);
-    throw new Error("Unable to fetch summary data.");
+    throw new Error(
+      err?.response?.data?.detail ||
+      err?.message ||
+      "Unable to fetch summary data."
+    );
   }
 };
+
  
 export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
   if (!token) throw new Error("Not authenticated");

@@ -23,6 +23,7 @@ const FileInput = () => {
     loading,
     error,
     errorFileLink,
+    setErrorFileLink,
     totalRecords,
     getProcessedData,
     fetchDataFromBackend,
@@ -140,6 +141,9 @@ const FileInput = () => {
               onClick={() => {
                 downloadErrorExcel(errorFileLink);
                 setErrorModalOpen(false);
+                setTimeout(()=>{
+setErrorFileLink(null)
+                },2000)
               }}
             >
               Download Error File
@@ -148,7 +152,11 @@ const FileInput = () => {
             <Button
               variant="outlined"
               sx={{ textTransform: "none" }}
-              onClick={() => setErrorModalOpen(false)}
+              onClick={() => {setErrorModalOpen(false)
+                setTimeout(()=>{
+setErrorFileLink(null)
+                },2000)
+              }}
             >
               Close
             </Button>
@@ -156,7 +164,6 @@ const FileInput = () => {
         </Box>
       </Modal>
 
-      {/* Data Table */}
       <DataTable
         headers={UI_HEADERS}
         rows={rows}

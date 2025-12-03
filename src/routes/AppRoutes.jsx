@@ -3,6 +3,7 @@ import { Suspense, lazy } from "react";
 import Layout from "../Layout/Layout.jsx";
 import PrivateRoute from "./PrivateRoute.jsx";
 import Comparision from "../component/Comparision.jsx";
+import ClientSummaryDetailedPage from "../pages/ClientSummaryDetailPage.jsx";
 
 // Lazy imports
 const DashboardPage = lazy(() => import("../pages/DashboardPage.jsx"));
@@ -50,7 +51,8 @@ const AppRoutes = () => {
           path="client-summary"
           element={
             <Suspense fallback={<div className="p-6">Loading Client Summary...</div>}>
-              <ClientSummaryPage />
+              {/* <ClientSummaryPage /> */}
+              <ClientSummaryDetailedPage/>
             </Suspense>
           }
         />

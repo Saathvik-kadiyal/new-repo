@@ -21,7 +21,6 @@ const months = [
   { value: "11", label: "November" },
   { value: "12", label: "December" },
 ];
-// const clientColorMap = getClientColorMap(data.map(d => d.label));
 
 const COLORS = [
   "#4e79a7",
@@ -49,16 +48,18 @@ const COLORS = [
 const ClientPieChartWithMonth = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(dayjs().format("MM"));
+  const [startMonth, setStartMonth] = useState("");
+  const [endMonth, setEndMonth] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientDetails, setClientDetails] = useState(null);
 
-  const getSummary = async (month) => {
+  const getSummary = async (startMonth,endmonth) => {
     setLoading(true);
     try {
       const token = localStorage.getItem("access_token");
-      const durationMonth = `${dayjs().format("YYYY")}-${month}`;
-      const res = await fetchClientSummary(token, durationMonth);
+      const start_month = `${dayjs().format("YYYY")}-${startMonth}`;
+      const end_month = `${dayjs().format("YYYY")}-${endMonth}`;
+      const res = await fetchClientSummary(token, start_month, end_month);
 
       const monthKey = Object.keys(res)[0];
       const arr = res[monthKey];
@@ -93,8 +94,8 @@ const ClientPieChartWithMonth = () => {
   };
 
   useEffect(() => {
-    getSummary(selectedMonth);
-  }, [selectedMonth]);
+    getSummary(startMonth,endMonth);
+  }, [startMonth,endMonth]);
 
   const chartData = selectedClient
     ? data.filter((d) => d.label === selectedClient)
@@ -103,7 +104,7 @@ const ClientPieChartWithMonth = () => {
   useEffect(() => {
     if (selectedClient) {
       const found = data.find((d) => d.label === selectedClient);
-      setClientDetails(found?.details || null); // store raw details, not wrapper object
+      setClientDetails(found?.details || null);
     } else {
       setClientDetails(null);
     }
@@ -148,7 +149,6 @@ const ClientPieChartWithMonth = () => {
                 colors={chartData.map((d) => d.color)}
               />
 
-              {/* Centered overlay text */}
               {clientDetails && (
                 <div
                   className="
@@ -170,7 +170,6 @@ const ClientPieChartWithMonth = () => {
           )}
         </div>
 
-        {/* Checkboxes list */}
         <div
           style={{
             scrollbarWidth: "none",
@@ -179,7 +178,7 @@ const ClientPieChartWithMonth = () => {
           className="max-h-60 overflow-y-scroll flex flex-col gap-1 pr-2 no-scrollbar"
         >
           {data
-   .filter((item) => item && item.value > 0) // remove falsy/undefined/null items
+   .filter((item) => item && item.value > 0) 
   .map((item) => (
     <FormControlLabel
       key={item.id}

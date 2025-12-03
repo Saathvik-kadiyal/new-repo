@@ -20,7 +20,8 @@ const Sidebar = () => {
         <ul className="flex flex-col gap-1">
           <li>
             <NavLink
-              onClick={() => setPanelOpen((prev) => !prev)} 
+             to={"/"}
+              // onClick={() => setPanelOpen((prev) => !prev)} 
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-lg transition
                   ${
