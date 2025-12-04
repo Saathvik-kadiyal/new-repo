@@ -60,8 +60,7 @@ const GraphChart = ({ startMonth, endMonth }) => {
                 });
  
                 const values = Object.values(graph);
- 
-                setChartData({ labels, values });
+                setChartData({ labels, values});
             } catch (err) {
                 console.error("Error fetching graph:", err);
                 setChartData({ labels: [], values: [] });
@@ -101,8 +100,15 @@ const GraphChart = ({ startMonth, endMonth }) => {
  
                         xAxis={[{ data: chartData.labels, scaleType: "point", label: "Month" }]}
                         series={[
-                            { data: chartData.values, showMark: true, label: "Total Allowance" },
-                        ]}
+  {
+    data: chartData.values,
+    showMark: true,
+    label: "Total Allowance",
+    valueFormatter: (v) => `₹${v.toLocaleString("en-IN")}`,
+  },
+]}
+
+
                         height={320}
                     />
                 ) : (

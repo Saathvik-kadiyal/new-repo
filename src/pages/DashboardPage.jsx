@@ -40,6 +40,7 @@ const DashboardPage = () => {
               views={["year", "month"]}
               format="MMMM YYYY"
               value={startMonth ? dayjs(startMonth) : null}
+              disableFuture
               onChange={(newValue) => {
                 if (newValue) {
                   setStartMonth(dayjs(newValue).format("YYYY-MM"));
@@ -67,6 +68,7 @@ const DashboardPage = () => {
               views={["year", "month"]}
               format="MMMM YYYY"
               value={endMonth ? dayjs(endMonth) : null}
+              disableFuture
               onChange={(newValue) => {
                 if (newValue) {
                   setEndMonth(dayjs(newValue).format("YYYY-MM"));
