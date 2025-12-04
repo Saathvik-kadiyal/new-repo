@@ -13,7 +13,7 @@ export const UI_HEADERS = [
   "Emp ID",
   "Emp Name",
   "Department",
-  "Project Code",
+  "Shift Details",
   "Account Manager",
   "Client",
   "Duration Month",
@@ -50,7 +50,7 @@ const FIELD_MAP = {
   emp_id: "Emp ID",
   emp_name: "Emp Name",
   department: "Department",
-  project_code: "Project Code",
+  shift_details : "Shift Details",
   account_manager: "Account Manager",
   client: "Client",
   duration_month: "Duration Month",
@@ -145,6 +145,7 @@ const debouncedFetch = useCallback(
         start: 0,
         limit: 1000, // fetch all
       });
+       console.log("Search + MonthRange Result:", res);
 
       const mappedRows = res.data
         .slice(start, start + 10)
@@ -204,7 +205,7 @@ if (by === "MonthRange") {
   setRows(mappedRows);
   setTotalRecords(res.length);
   setTotalPages(Math.ceil(res.length / 10));
-  setError(""); // clear error if data exists
+  setError(""); 
   return;
 }
 

@@ -153,12 +153,22 @@ export const updateEmployeeShift = async (token , emp_id,
 };
 
 
-export const fetchClientSummary = async (token,month="") => {
+export const pieChart = async (token,start_month,end_month,topFilter) => {
   if (!token) throw new Error("Not authenticated");
- console.log(month)
+  let params={}
+  if(start_month!==null && start_month!==undefined && start_month!==""){
+params[start_month]=start_month
+  }
+  if(end_month!==null && end_month!==undefined && end_month!==""){
+    params[end_month] = end_month
+  }
+  if(topFilter!==null && topFilter!==undefined && topFilter!==""){
+params["top"]=topFilter
+  }
+
   try {
-    const response = await axios.get(`${backendApi}/shift/interval-summary`, {
-      params:{start_month:month},
+    const response = await axios.get(`${backendApi}/dashboard/piechart`, {
+      params:params,
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;
@@ -167,6 +177,7 @@ export const fetchClientSummary = async (token,month="") => {
     if (err?.message) throw new Error(err.message);
     throw new Error("Unable to fetch summary data.");
   }
+  
 };
  
 export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
@@ -183,6 +194,34 @@ export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
   return response.data;
 };
  
+export const fetchHorizontalBar = async (token, startMonth, endMonth, topFilter) => {
+  if (!token) throw new Error("Not authenticated");
+
+  const params = {};
+  if (startMonth && (!endMonth || startMonth === endMonth)) {
+    params.duration_month = startMonth;
+  }
+  if (startMonth && endMonth && startMonth !== endMonth) {
+    params.start_month = startMonth;
+    params.end_month = endMonth;
+  }
+  if (topFilter) {
+    params.top = topFilter;   
+  }
+  try {
+    const response = await axios.get(`${backendApi}/dashboard/horizontal-bar`, {
+      params: params,
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return response.data;   
+  } catch (err) {
+    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+    if (err?.message) throw new Error(err.message);
+    throw new Error("Unable to fetch horizontal bar data.");
+  }
+};
+
  
 // ===========================
 // ACCOUNT MANAGER HELPERS

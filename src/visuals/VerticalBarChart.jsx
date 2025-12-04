@@ -1,117 +1,78 @@
 import React, { useEffect, useState } from "react";
-import { BarChart } from "@mui/x-charts";
-import {
-  Box,
-  CircularProgress,
-  Typography,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-} from "@mui/material";
 import axios from "axios";
-import dayjs from "dayjs";
+import { BarChart } from "@mui/x-charts";
+import { Box, CircularProgress, Typography } from "@mui/material";
 
-const backendApi = import.meta.env.VITE_BACKEND_API;
-const token = localStorage.getItem("access_token")
-
-const months = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November"
-];
-
-
-const VerticalBarChart = () => {
-  const currentMonth = dayjs().format("YYYY-MM");
-  const [month, setMonth] = useState(currentMonth);
+const VerticalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const backendApi = import.meta.env.VITE_BACKEND_API;
+ const token = localStorage.getItem("access_token")
 
-  const fetchData = async (month) => {
-    setLoading(true);
+
+  const fetchData = async (startMonth,endMonth,topFilter) => {
     try {
-      const res = await axios.get(`${backendApi}/dashboard/vertical-graph`, {
-headers: { Authorization: `Bearer ${token}` },
-        params: { duration_month: month },
-      });
+      setLoading(true);
 
-      const chartData = res.data.map(item => ({
-        client: item.client_name,
-        total_days: item.total_days,
-        total_allowances: item.total_allowances,
-      }));
+      const params = {
+        top: topFilter, 
+      };
 
-      setData(chartData);
+      const start = startMonth;
+      const end = endMonth;
+
+      if (start) params.start_month = start;
+      if (end) params.end_month = end;
+
+      console.log("PARAMS SENT TO BACKEND:", params);
+
+      const res = await axios.get(`${backendApi}/dashboard/vertical-bar`, {
+         headers: { Authorization: `Bearer ${token}` },
+         params: params,
+       });
+
+      console.log("BACKEND RESPONSE:", res.data);
+      setData(res.data || []);
     } catch (err) {
-      console.error("Error fetching vertical graph data:", err);
+      console.error("ERROR FETCHING DATA:", err);
       setData([]);
     } finally {
       setLoading(false);
     }
   };
 
+  
   useEffect(() => {
-    fetchData(month);
-  }, [month]);
+    fetchData(startMonth,endMonth,topFilter);
+  }, [startMonth, endMonth, topFilter]);
 
-  const config = {
-    height: 300,
-    margin: { left: 50 },
-    yAxis: [{ width: 60 }],
-    hideLegend: false,
-  };
+ 
+ 
+  const chartData = data.map((item) => ({
+    client: item.client || item.client_name,
+    total_allowances: item.total_allowances,
+    total_shifts:item.total_days
+  }));
+
 
   return (
-    <Box>
-      <div className="flex flex-row justify-between px-4">
-        <Typography> Total Allowances</Typography>
-        <FormControl size="small" sx={{ minWidth: 150 }}>
-        <InputLabel>Month</InputLabel>
-        <Select
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          variant="standard"
-          sx={{ borderBottom: "1px solid #000", borderRadius: 0 }}
-        >
-          {months.map((monthName, idx) => {
-            const monthString = dayjs().month(idx).format("YYYY-MM");
-            return (
-              <MenuItem key={idx} value={monthString}>
-                {monthName}
-              </MenuItem>
-            );
-          })}
-        </Select>
-      </FormControl>
-      </div>
-
-      {/* Loader */}
-      {loading && <CircularProgress />}
-
-      {/* Chart */}
-      {!loading && data.length > 0 ? (
+    <Box sx={{ width: "100%", height: 400 }}>
+      {loading ? (
+        <CircularProgress />
+      ) : chartData.length === 0 ? (
+        <Typography>No data found</Typography>
+      ) : (
         <BarChart
-  dataset={data}
+          dataset={chartData}
   series={[
     { dataKey: "total_allowances", label: "Total Allowances", color: "#3f51b5", yAxis: "left" },
-    { dataKey: "total_days", label: "Total Days", color: "#f50057", yAxis: "right" },
+    { dataKey: "total_shifts", label: "Total Shifts", color: "#f50057", yAxis: "right" },
   ]}
-  xAxis={[
-    {
-      dataKey: "client",   
-      label: "Client",        
-      tickFormatter: () => "", 
-    },
-  ]}
-  yAxis={[
-    { id: "left", width: 60, label: "Allowances" },
-    { id: "right", width: 60, label: "Days" },
-  ]}
-  {...config}
-/>
-
-      ) : (
-        !loading && <Typography>No data available for this month.</Typography>
+          xAxis={[{ dataKey: "client", scaleType: "band" }]}
+      
+          width={900}
+          height={400}
+        />
       )}
     </Box>
   );
