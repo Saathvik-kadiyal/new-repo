@@ -16,40 +16,40 @@ export const fetchEmployees = async ({
   token,
   start = 0,
   limit = 10,
-  searchBy = null,
-  searchQuery = "",
+  params = {},  
 }) => {
   if (!token) throw new Error("Not authenticated");
+  const hasParams = Object.keys(params).length > 0;
 
-  let url = `${backendApi}/display/?start=${start}&limit=${limit}`;
-  if (searchBy && searchQuery.trim().length > 0) {
-    const params = new URLSearchParams();
-    if (searchBy === "Emp ID") params.append("emp_id", searchQuery);
-    if (searchBy === "Account Manager") params.append("account_manager", searchQuery);
-    url = `${backendApi}/employee-details/Search?${params.toString()}`;
+  let url;
+  let requestParams = {};
+
+  if (!hasParams) {
+    url = `${backendApi}/display/`;
+    requestParams = { start, limit };
+  } else {
+    url = `${backendApi}/employee-details/Search`;
+    requestParams = { ...params,start,limit};
   }
 
   const response = await axios.get(url, {
     headers: { Authorization: `Bearer ${token}` },
+    params: requestParams, 
   });
 
   const data = response.data;
-
   if (Array.isArray(data?.data?.data)) {
     return {
       ...data,
       data: data.data.data,
     };
   }
-
   if (Array.isArray(data?.data)) {
     return data;
   }
   return data;
 };
 
-
-// Fetch individual employee details
 export const fetchEmployeeDetail = async (token,emp_id,duration_month,payroll_month) => {
   if (!token) throw new Error("Not authenticated");
   const payload = {
@@ -65,7 +65,6 @@ export const fetchEmployeeDetail = async (token,emp_id,duration_month,payroll_mo
   return response.data;
 };
 
-// Upload file to backend
 export const uploadFile = async (token, file) => {
   if (!token) throw new Error("Not authenticated");
 
@@ -151,6 +150,63 @@ export const updateEmployeeShift = async (token , emp_id,
 };
 
 
+export const pieChart = async (token,start_month,end_month,topFilter) => {
+  if (!token) throw new Error("Not authenticated");
+  let params={}
+  if(start_month!==null && start_month!==undefined && start_month!==""){
+params[start_month]=start_month
+  }
+  if(end_month!==null && end_month!==undefined && end_month!==""){
+    params[end_month] = end_month
+  }
+  if(topFilter!==null && topFilter!==undefined && topFilter!==""){
+params["top"]=topFilter
+  }
+ 
+  try {
+    const response = await axios.get(`${backendApi}/dashboard/piechart`, {
+      params:params,
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (err) {
+    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+    if (err?.message) throw new Error(err.message);
+    throw new Error("Unable to fetch summary data.");
+  }
+ 
+};
+ 
+
+export const fetchHorizontalBar = async (token, startMonth, endMonth, topFilter) => {
+  if (!token) throw new Error("Not authenticated");
+ 
+  const params = {};
+  if (startMonth && (!endMonth || startMonth === endMonth)) {
+    params.duration_month = startMonth;
+  }
+  if (startMonth && endMonth && startMonth !== endMonth) {
+    params.start_month = startMonth;
+    params.end_month = endMonth;
+  }
+  if (topFilter) {
+    params.top = topFilter;  
+  }
+  try {
+    const response = await axios.get(`${backendApi}/dashboard/horizontal-bar`, {
+      params: params,
+      headers: { Authorization: `Bearer ${token}` },
+    });
+ 
+    return response.data;  
+  } catch (err) {
+    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+    if (err?.message) throw new Error(err.message);
+    throw new Error("Unable to fetch horizontal bar data.");
+  }
+};
+ 
+
 export const fetchClientSummary = async (
   token,
   client = "ALL",
@@ -170,6 +226,7 @@ export const fetchClientSummary = async (
         end_month,
       },
     });
+    console.log(response)
     return response.data;
   } catch (err) {
     throw new Error(

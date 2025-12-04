@@ -43,10 +43,10 @@ const ClientSummaryDetailedPage = () => {
     label: 300,
     headCount: 120,
     accountManager: 220,
-    A: 80,
-    B: 80,
-    C: 80,
-    PRIME: 80,
+    A: 100,
+    B: 100,
+    C: 100,
+    PRIME: 100,
     amount: 120,
   };
 
@@ -250,12 +250,14 @@ const ClientSummaryDetailedPage = () => {
             label="Start Month"
             value={startMonth}
             onChange={(v) => setStartMonth(v)}
+            disableFuture
             slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
           />
           <DatePicker
             views={["year", "month"]}
             label="End Month"
             value={endMonth}
+            disableFuture
             onChange={(v) => setEndMonth(v)}
             slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
           />
@@ -302,6 +304,28 @@ const ClientSummaryDetailedPage = () => {
 
         const diff = prevTotal !== null ? monthTotalAmount - prevTotal : 0;
 
+        if (!monthObj || monthObj?.message === "No data found") {
+  return (
+    <Box key={monthKey} sx={{ mb: 4 }}>
+      <Typography sx={{ fontWeight: "bold", mb: 1 }}>
+        {formattedMonth}
+      </Typography>
+      <Box
+        sx={{
+          p: 2,
+          bgcolor: "#fff7e0",
+          border: "1px solid #e6d18b",
+          borderRadius: 1,
+        }}
+      >
+        <Typography sx={{ fontStyle: "italic" }}>
+          No data available for this month.
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
         let diffColor = "black";
         if (prevTotal !== null) {
           if (diff > 0) diffColor = "red";
@@ -329,19 +353,19 @@ const ClientSummaryDetailedPage = () => {
               <TableHead>
                 <TableRow>
                   <TableCell sx={headerCellStyle(colWidths.label)}>
-                    Label
+                    Client
                   </TableCell>
                   <TableCell sx={headerCellStyle(colWidths.headCount)}>
                     Head Count
                   </TableCell>
                   <TableCell sx={headerCellStyle(colWidths.accountManager)}>
-                    Account Manager
+                    Client Partner
                   </TableCell>
-                  <TableCell sx={headerCellStyle(colWidths.A)}>A</TableCell>
-                  <TableCell sx={headerCellStyle(colWidths.B)}>B</TableCell>
-                  <TableCell sx={headerCellStyle(colWidths.C)}>C</TableCell>
+                  <TableCell sx={headerCellStyle(colWidths.A)}>A<br/><span className="text-[9px]">(09 PM to 06 AM)</span></TableCell>
+                  <TableCell sx={headerCellStyle(colWidths.B)}>B<br/><span className="text-[9px]">(04 PM to 01 AM)</span></TableCell>
+                  <TableCell sx={headerCellStyle(colWidths.C)}>C<br/><span className="text-[9px]">(06 AM to 03 PM)</span></TableCell>
                   <TableCell sx={headerCellStyle(colWidths.PRIME)}>
-                    PRIME
+                    PRIME<br/><span className="text-[9px]">(12 AM to 09 AM)</span>
                   </TableCell>
                   <TableCell sx={headerCellStyle(colWidths.amount)}>
                     Amount
@@ -424,7 +448,7 @@ const ClientSummaryDetailedPage = () => {
 
                               return (
                                 <React.Fragment key={deptKey}>
-                                  <TableRow sx={{ backgroundColor: "#ffffff" }}>
+                                  <TableRow sx={{ backgroundColor: "#f5f7ff" }}>
                                     <TableCell
                                       sx={labelCellStyle(2)}
                                       onClick={() => toggleOpen(deptKey)}
@@ -496,7 +520,7 @@ const ClientSummaryDetailedPage = () => {
                                           <React.Fragment key={empKey}>
                                             <TableRow
                                               sx={{
-                                                backgroundColor: "#fcfcff",
+                                                backgroundColor: "#fffff",
                                               }}
                                             >
                                               <TableCell

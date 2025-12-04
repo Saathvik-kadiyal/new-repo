@@ -83,11 +83,7 @@ const DataTable = ({ headers }) => {
 
   const pattern = /^[A-Za-z]{2}[A-Za-z0-9-_ ]*$/;
 
-  const openInfo = (data) => {
-    setInfo(data);
-  };
-
-const columns = [
+  const columns = [
     ...headers.map((header) => {
       if (header === "Shift Details") {
         return {
@@ -96,51 +92,60 @@ const columns = [
           flex: 1,
           sortable: true,
           disableColumnMenu: true,
- 
+
           renderHeader: () => (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <span>Shift Details</span>
- 
+
               <IconButton
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
                   setInfoOpen((prev) => !prev);
-            const rect = e.currentTarget.getBoundingClientRect();
-            const popupHeight = 100;
-            const iconHeight = rect.height;
-            setInfoPosition({
-            top: rect.top + window.scrollY + iconHeight / 2 - popupHeight / 2 - 100,
-            left: rect.left + window.scrollX - 100,
-          });
-          }}
- 
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const popupHeight = 100;
+                  const iconHeight = rect.height;
+                  setInfoPosition({
+                    top:
+                      rect.top +
+                      window.scrollY +
+                      iconHeight / 2 -
+                      popupHeight / 2 -
+                      100,
+                    left: rect.left + window.scrollX - 100,
+                  });
+                }}
               >
                 <Info size={16} />
               </IconButton>
             </Box>
           ),
-         
- 
+
           renderCell: (params) => formatShiftDetails(params.value),
         };
       }
- 
+
       return {
         field: header,
         headerName: header,
         flex: 1,
         sortable: true,
+        filterable: false,
         disableColumnMenu: true,
       };
     }),
- 
+
     {
       field: "actions",
       headerName: "",
       width: 1,
       flex: 0,
+      filterable: false,
       sortable: false,
+      disableColumnMenu: true,
+      disableColumnResize: true,
+      resizable: false,
+
       renderCell: (params) => (
         <Button
           size="small"
@@ -152,45 +157,52 @@ const columns = [
               params.row["Payroll Month"]
             );
           }}
-          sx={{ minWidth: 0, padding: "4px" }}
+          disableRipple
+          sx={{
+            minWidth: 0,
+            padding: "4px",
+            backgroundColor: "transparent",
+            "&:hover": { backgroundColor: "transparent" },
+            "&:focus": { backgroundColor: "transparent" },
+            "&:active": { backgroundColor: "transparent" },
+            outline: "none",
+            "&:focus-visible": { outline: "none" },
+          }}
         >
-          <Eye color="black" size={16} />
+           <Eye size={18} className="text-black hover:text-blue-600" />
         </Button>
       ),
     },
   ];
- 
+
   columns.forEach((col) => {
     if (col.field === "Duration Month" || col.field === "Payroll Month") {
       col.renderCell = (params) => formatMonth(params.value);
     }
   });
- 
 
   useEffect(() => {
     const start = (page - 1) * 10;
-    if (searchQuery.trim().length > 3 && startMonth) return;
 
-    if (searchQuery.trim().length > 3) {
-      debouncedFetch(searchQuery, searchBy, page);
-    } else if (startMonth) {
-      debouncedFetch({ startMonth, endMonth }, "MonthRange", page);
+    let params = {};
+
+    const q = searchQuery.trim();
+    const validSearch = q.length > 3;
+    if (validSearch) {
+      if (searchBy === "Emp ID") params.emp_id = q;
+      if (searchBy === "Account Manager") params.account_manager = q;
+    }
+    if (startMonth) params.start_month = startMonth;
+    if (endMonth) params.end_month = endMonth;
+
+    const hasParams = Object.keys(params).length > 0;
+
+    if (hasParams) {
+      debouncedFetch(params, page);
     } else {
       getProcessedData(start, 10);
     }
-  }, [page]);
-
-  useEffect(() => {
-    if (searchQuery.trim().length > 3 && startMonth) return;
-
-    if (searchQuery.trim().length > 3) {
-      debouncedFetch(searchQuery, searchBy, 1);
-    } else if (startMonth) {
-      debouncedFetch({ startMonth, endMonth }, "MonthRange", 1);
-    } else if (!searchQuery && !startMonth) {
-      getProcessedData(0, 10);
-    }
-  }, [searchQuery, searchBy, startMonth, endMonth]);
+  }, [page, searchQuery, searchBy, startMonth, endMonth]);
 
   const handleDownload = () => {
     if (!searchQuery?.trim() && !startMonth)
@@ -369,6 +381,7 @@ const columns = [
             columns={columns}
             disableRowSelectionOnClick
             disableColumnReorder
+            disableColumnSorting
             pagination={false}
             hideFooter
             autoHeight={false}
@@ -402,6 +415,13 @@ const columns = [
               "& .MuiDataGrid-cell": {
                 borderBottom: "none",
               },
+              "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                outline: "none !important",
+              },
+              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within":
+                {
+                  outline: "none !important",
+                },
             }}
           />
         </Box>
@@ -483,7 +503,6 @@ const columns = [
           })}
         </Box>
       )}
- 
     </Box>
   );
 };

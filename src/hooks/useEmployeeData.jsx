@@ -130,112 +130,44 @@ const getProcessedData = useCallback(
 
 
 
-
 const debouncedFetch = useCallback(
-  debounce(async (value, by, page = 1) => {
-    if (!token) return;
-    const start = (page - 1) * 10;
+  debounce(async (params, page = 1) => {
+    try {
+      if (!token) return;
 
-    // Search + Month Range
-    if (by === "SearchAndMonthRange") {
-      const { searchQuery, startMonth, endMonth } = value;
-      const res = await fetchEmployees({
+      const start = (page - 1) * 10;
+
+      const data = await fetchEmployees({
         token,
-        searchBy: value.searchBy,
-        searchQuery,
-        start: 0,
-        limit: 1000, // fetch all
+        start,
+        limit: 10,
+        params,
       });
 
-      const mappedRows = res.data
-        .slice(start, start + 10)
-        .map((item, index) => ({
-          id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
-          emp_id: item.emp_id,
-          "Duration Month": item.duration_month,
-          "Payroll Month": item.payroll_month,
-          ...Object.fromEntries(
-            Object.entries(FIELD_MAP).map(([k, v]) => [v, item[k] ?? ""])
-          ),
-        }));
+      const mappedRows = data.data.map((item, index) => ({
+        id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
+        emp_id: item.emp_id,
+        "Duration Month": item.duration_month,
+        "Payroll Month": item.payroll_month,
+        ...Object.fromEntries(
+          Object.entries(FIELD_MAP).map(([k, v]) => [v, item[k] ?? ""])
+        ),
+      }));
 
       setRows(mappedRows);
-      setTotalRecords(res.total_records || res.data.length);
-      setTotalPages(Math.ceil((res.total_records || res.data.length) / 10));
+      console.log(mappedRows)
+      setTotalRecords(data.total_records || mappedRows.length);
+      setTotalPages(Math.ceil((data.total_records || mappedRows.length) / 10));
       setError("");
-      return;
+    } catch (err) {
+      setError("Something went wrong");
+      console.error(err);
     }
-
-    // Month Range Only
-    // 🔹 Month Range Only
-if (by === "MonthRange") {
-  const { startMonth, endMonth } = value;
-  let res = [];
-
-  try {
-    res = await fetchEmployeesByMonthRange(token, startMonth, endMonth);
-  } catch (err) {
-    setRows([]);
-    setTotalRecords(0);
-    setTotalPages(0);
-    setError(err.message); // display "No data found for month range ..."
-    return;
-  }
-
-  if (!res || res.length === 0) {
-    setRows([]);
-    setTotalRecords(0);
-    setTotalPages(0);
-    setError(`No data found for month range ${startMonth} to ${endMonth}`);
-    return;
-  }
-
-  const mappedRows = res
-    .slice(start, start + 10)
-    .map((item, index) => ({
-      id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
-      emp_id: item.emp_id,
-      "Duration Month": item.duration_month,
-      "Payroll Month": item.payroll_month,
-      ...Object.fromEntries(
-        Object.entries(FIELD_MAP).map(([k, v]) => [v, item[k] ?? ""])
-      ),
-    }));
-
-  setRows(mappedRows);
-  setTotalRecords(res.length);
-  setTotalPages(Math.ceil(res.length / 10));
-  setError(""); // clear error if data exists
-  return;
-}
-
-
-    // Text Search Only
-    const data = await fetchEmployees({
-      token,
-      searchBy: by,
-      searchQuery: value,
-      start,
-      limit: 10,
-    });
-
-    const mappedRows = data.data.map((item, index) => ({
-      id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
-      emp_id: item.emp_id,
-      "Duration Month": item.duration_month,
-      "Payroll Month": item.payroll_month,
-      ...Object.fromEntries(
-        Object.entries(FIELD_MAP).map(([k, v]) => [v, item[k] ?? ""])
-      ),
-    }));
-
-    setRows(mappedRows);
-    setTotalRecords(data.total_records || mappedRows.length);
-    setTotalPages(Math.ceil((data.total_records || mappedRows.length) / 10));
-    setError("");
   }, 500),
   [token]
 );
+
+
 
 
   useEffect(() => {
@@ -252,7 +184,7 @@ const fetchDataFromBackend = useCallback(
       const res = await uploadFile(token, file);
 
       setSuccess(res.message || "File processed successfully");
-      getProcessedData((page - 1) * 10, 10);
+      setTimeout(()=>getProcessedData((page - 1) * 10, 10),200)
     } 
   catch (err) {
     console.log(err)
@@ -262,15 +194,11 @@ const fetchDataFromBackend = useCallback(
     if (detail) {
 
       if (detail.message) setError(detail.message);
-
-      // Directly set error file link if present
       if (detail.error_file) setErrorFileLink(detail.error_file);
 
-      setTimeout(() => getProcessedData((page - 1) * 10, 10), 1000);
+      setTimeout(() => getProcessedData((page - 1) * 10, 10), 200);
       return;
     }
-
-    // fallback
     setError(detail || "Unexpected server error");
   } else {
     setError("Network error, please try again");
@@ -318,21 +246,17 @@ const fetchDataFromBackend = useCallback(
     [getEmployeeDetailHandler]
   );
 
-  const downloadExcel = useCallback(() => {
-    const headers = EXPORT_HEADERS;
-    const exportData = rows.map((r) => {
-      const copy = {};
-      headers.forEach((h) => (copy[h] = r[h] || ""));
-      return copy;
-    });
-    const ws = XLSX.utils.json_to_sheet(exportData, { header: headers });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Employee Data");
-    XLSX.writeFile(
-      wb,
-      rows.length ? "Allowance_Data.xlsx" : "Allowance_Template.xlsx"
-    );
-  }, [rows]);
+ const downloadExcel = useCallback(() => {
+  const headers = EXPORT_HEADERS;
+  const exportData = [Object.fromEntries(headers.map(h => [h, ""]))];
+
+  const ws = XLSX.utils.json_to_sheet(exportData, { header: headers, skipHeader: false });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Employee Data");
+
+  XLSX.writeFile(wb, "Allowance_Template.xlsx");
+}, []);
+
 
 const downloadSearchData = useCallback(async (searchState) => {
   try {
@@ -344,7 +268,6 @@ const downloadSearchData = useCallback(async (searchState) => {
       if (searchState.endMonth) params.end_month = searchState.endMonth;
     }
 
-    /** ---------- Text Search ---------- */
     if (searchState.query?.trim()) {
       const { query, searchBy } = searchState;
 
