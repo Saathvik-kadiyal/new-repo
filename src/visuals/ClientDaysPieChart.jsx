@@ -143,7 +143,7 @@ const ClientDaysPieChart = ({ startMonth, endMonth, topFilter }) => {
                         {"\n"}Shift C: {client.details.shift_c_days || client.details.shift_c}
                         {"\n"}Prime: {client.details.prime_days || client.details.prime}
                         {"\n"}Employees: {client.details.total_employees}
-                        {"\n"}Allowances: {client.details.total_allowances}
+                        {"\n"}Allowances: &#x20B9;{client.details.total_allowances}
                       </>
                     );
                   })()}

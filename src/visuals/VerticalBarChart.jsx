@@ -65,7 +65,7 @@ const VerticalBarChart = ({ startMonth, endMonth, topFilter }) => {
     fetchData();
   }, [startMonth, endMonth, topFilter]);
 
-  const maxValue = Math.max(...data.map(d => d.total_unique_employees));
+  const maxValue = Math.max(...data.map(d => d.total_unique_employees))+2;
 
   return (
     <Box>

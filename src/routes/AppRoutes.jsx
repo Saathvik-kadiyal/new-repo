@@ -26,9 +26,13 @@ const AppRoutes = () => {
         <Route
           index
           element={
+             <PrivateRoute>
             <Suspense fallback={<div className="p-6">Loading Dashboard...</div>}>
-              <DashboardPage />
+             
+                <DashboardPage />
+             
             </Suspense>
+             </PrivateRoute>
           }
         />
          <Route

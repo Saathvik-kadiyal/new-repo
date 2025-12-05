@@ -104,7 +104,7 @@ const getProcessedData = useCallback(
       const data = await fetchEmployees({ token, start, limit });
 
       const mappedRows = data.data.map((item, index) => ({
-        id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`, // unique
+        id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
         emp_id: item.emp_id,
         "Duration Month": item.duration_month,
         "Payroll Month": item.payroll_month,
@@ -184,7 +184,6 @@ const fetchDataFromBackend = useCallback(
       const res = await uploadFile(token, file);
 
       setSuccess(res.message || "File processed successfully");
-      setTimeout(()=>getProcessedData((page - 1) * 10, 10),200)
     } 
   catch (err) {
     console.log(err)
@@ -196,7 +195,7 @@ const fetchDataFromBackend = useCallback(
       if (detail.message) setError(detail.message);
       if (detail.error_file) setErrorFileLink(detail.error_file);
 
-      setTimeout(() => getProcessedData((page - 1) * 10, 10), 200);
+      
       return;
     }
     setError(detail || "Unexpected server error");
@@ -207,6 +206,7 @@ const fetchDataFromBackend = useCallback(
 
     finally {
       setLoading(false);
+      setTimeout(() => getProcessedData(0, 10), 200);
     }
   },
   [token, resetState, page, getProcessedData]

@@ -148,11 +148,13 @@ Clear
               endMonth={endMonth}
               topFilter={topFilter}
             />
-            <TotalShifts
+<div className="mt-8">
+   <TotalShifts
               startMonth={startMonth}
               endMonth={endMonth}
               topFilter={topFilter}
             />
+</div>
           </div>
       </div>
     </LocalizationProvider>

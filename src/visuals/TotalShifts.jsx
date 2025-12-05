@@ -56,7 +56,10 @@ const TotalShifts = ({ startMonth, endMonth, topFilter = "Top5" }) => {
   const maxValueShifts = Math.max(...chartData.map(d => d.total_shifts));
 
   return (
-    <Box sx={{ width: "100%", height: 400 }}>
+    <Box sx={{ width: "100%", height: 400 ,marginTop:12}}>
+        <Typography>
+            Total Shifts
+        </Typography>
       {loading ? (
         <CircularProgress />
       ) : chartData.length === 0 ? (

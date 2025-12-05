@@ -37,6 +37,9 @@ const FileInput = () => {
     if (!file) return;
     setFileName(file.name);
     fetchDataFromBackend(file);
+      setTimeout(() => {
+    setFileName(null);
+  }, 3000);
   };
 
   useEffect(() => {

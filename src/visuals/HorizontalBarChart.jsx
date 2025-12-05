@@ -56,7 +56,10 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
   const maxValueShifts = Math.max(...chartData.map(d => d.total_shifts));
 
   return (
-    <Box sx={{ width: "100%", height: 400 }}>
+    <Box sx={{ width: "100%", height: 400, marginTop:8 }}>
+      <Typography>
+        Total Allowance
+      </Typography>
       {loading ? (
         <CircularProgress />
       ) : chartData.length === 0 ? (
@@ -97,7 +100,7 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
             {
               scaleType: "linear",
               min: 0,
-              max: Math.max(maxValueAllowance, maxValueShifts)+5000,
+              max: Math.max(maxValueAllowance, maxValueShifts)+50000,
               tickValues: Array.from(
                 { length: Math.ceil(Math.max(maxValueAllowance, maxValueShifts) / 10) + 1 },
                 (_, i) => i * 10
