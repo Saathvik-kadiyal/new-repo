@@ -3,7 +3,7 @@ import axios from "axios";
 import { BarChart } from "@mui/x-charts";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
-const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
+const TotalShifts = ({ startMonth, endMonth, topFilter = "Top5" }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const backendApi = import.meta.env.VITE_BACKEND_API;
@@ -66,23 +66,23 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
           dataset={chartData}
           layout="horizontal"
           series={[
-            {
-              dataKey: "total_allowances",
-              label: "Total Allowances",
-              color: "#3f51b5",
-              yAxisKey: "clientAxis", 
-              valueFormatter: (v) => `₹${formatCompact(v)}`,
-              barLabel: (item) => `₹${formatCompact(item.value)}`,
-              barLabelPlacement: "outside",
-            },
             // {
-            //   dataKey: "total_shifts",
-            //   label: "Total Shifts",
-            //   color: "#f50057",
-            //   yAxisKey: "clientAxis",
-            //   barLabel: (item) => item.value,
+            //   dataKey: "total_allowances",
+            //   label: "Total Allowances",
+            //   color: "#3f51b5",
+            //   yAxisKey: "clientAxis", 
+            //   valueFormatter: (v) => `₹${formatCompact(v)}`,
+            //   barLabel: (item) => `₹${formatCompact(item.value)}`,
             //   barLabelPlacement: "outside",
             // },
+            {
+              dataKey: "total_shifts",
+              label: "Total Shifts",
+              color: "#f50057",
+              yAxisKey: "clientAxis",
+              barLabel: (item) => item.value,
+              barLabelPlacement: "outside",
+            },
           ]}
           yAxis={[
             {
@@ -97,9 +97,9 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
             {
               scaleType: "linear",
               min: 0,
-              max: Math.max(maxValueAllowance, maxValueShifts)+5000,
+              max: Math.max(maxValueShifts)+100,
               tickValues: Array.from(
-                { length: Math.ceil(Math.max(maxValueAllowance, maxValueShifts) / 10) + 1 },
+                { length: Math.ceil(Math.max(maxValueShifts) / 10) + 1 },
                 (_, i) => i * 10
               ),
             },
@@ -112,4 +112,4 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
   );
 };
 
-export default HorizontalBarChart;
+export default TotalShifts;

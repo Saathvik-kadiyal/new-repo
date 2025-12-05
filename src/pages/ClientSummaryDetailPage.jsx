@@ -170,7 +170,7 @@ const ClientSummaryDetailedPage = () => {
   return (
     <Box sx={{ padding: 2 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
-        Client Summary (Detailed)
+        Client Summary
       </Typography>
 
       <Box
@@ -297,10 +297,27 @@ const ClientSummaryDetailedPage = () => {
       {monthKeys.map((monthKey) => {
         const monthObj = data[monthKey];
         const formattedMonth = dayjs(monthKey + "-01").format("MMM YYYY");
-        const monthTotals =
-          monthObj?.month_total || monthObj?.vertical_total || {};
         const clientsMap = monthObj?.clients || monthObj || {};
-        const monthTotalAmount = monthTotals?.total_allowance ?? 0;
+        
+
+        const monthTotals = {
+  total_head_count: 0,
+  A: 0,
+  B: 0,
+  C: 0,
+  PRIME: 0,
+  total_allowance: 0,
+};
+
+Object.values(clientsMap).forEach((client) => {
+  monthTotals.total_head_count += client.client_head_count ?? 0;
+  monthTotals.total_allowance += client.client_total ?? 0;
+  monthTotals.A += client.client_A ?? 0;
+  monthTotals.B += client.client_B ?? 0;
+  monthTotals.C += client.client_C ?? 0;
+  monthTotals.PRIME += client.client_PRIME ?? 0;
+});
+const monthTotalAmount = monthTotals?.total_allowance ?? 0;
 
         const diff = prevTotal !== null ? monthTotalAmount - prevTotal : 0;
 
@@ -473,18 +490,18 @@ const ClientSummaryDetailedPage = () => {
                                       )}
                                     />
                                     <TableCell sx={rightCellStyle(colWidths.A)}>
-                                      &#x20B9;{deptObj?.A ?? 0}
+                                      {deptObj?.A }
                                     </TableCell>
                                     <TableCell sx={rightCellStyle(colWidths.B)}>
-                                      &#x20B9;{deptObj?.B ?? 0}
+                                      {deptObj?.B}
                                     </TableCell>
                                     <TableCell sx={rightCellStyle(colWidths.C)}>
-                                      &#x20B9;{deptObj?.C ?? 0}
+                                      {deptObj?.C}
                                     </TableCell>
                                     <TableCell
                                       sx={rightCellStyle(colWidths.PRIME)}
                                     >
-                                      &#x20B9;{deptObj?.PRIME ?? 0}
+                                      {deptObj?.PRIME}
                                     </TableCell>
                                     <TableCell
                                       sx={rightCellStyle(colWidths.amount)}
@@ -586,37 +603,20 @@ const ClientSummaryDetailedPage = () => {
                   })}
 
                 {/* Month Total */}
-                <TableRow sx={{ backgroundColor: "#dfeff0" }}>
-                  <TableCell
-                    sx={{
-                      ...tableCellStyle(colWidths.label),
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Month Total
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      ...rightCellStyle(colWidths.headCount),
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {monthTotals?.total_head_count ?? "-"}
-                  </TableCell>
-                  <TableCell sx={tableCellStyle(colWidths.accountManager)} />
-                  <TableCell sx={rightCellStyle(colWidths.A)} />
-                  <TableCell sx={rightCellStyle(colWidths.B)} />
-                  <TableCell sx={rightCellStyle(colWidths.C)} />
-                  <TableCell sx={rightCellStyle(colWidths.PRIME)} />
-                  <TableCell
-                    sx={{
-                      ...rightCellStyle(colWidths.amount),
-                      fontWeight: "bold",
-                    }}
-                  >
-                    &#x20B9;{monthTotals?.total_allowance ?? "-"}
-                  </TableCell>
-                </TableRow>
+              <TableRow sx={{ backgroundColor: "#f0f0f0", fontWeight: "bold" }}>
+  <TableCell sx={tableCellStyle(colWidths.label)}>Month Total</TableCell>
+  <TableCell sx={rightCellStyle(colWidths.headCount)}>
+    {monthTotals.total_head_count}
+  </TableCell>
+  <TableCell sx={tableCellStyle(colWidths.accountManager)} />
+  <TableCell sx={rightCellStyle(colWidths.A)}>&#x20B9;{monthTotals.A}</TableCell>
+  <TableCell sx={rightCellStyle(colWidths.B)}>&#x20B9;{monthTotals.B}</TableCell>
+  <TableCell sx={rightCellStyle(colWidths.C)}>&#x20B9;{monthTotals.C}</TableCell>
+  <TableCell sx={rightCellStyle(colWidths.PRIME)}>&#x20B9;{monthTotals.PRIME}</TableCell>
+  <TableCell sx={rightCellStyle(colWidths.amount)}>
+    &#x20B9;{monthTotals.total_allowance}
+  </TableCell>
+</TableRow>
               </TableBody>
             </Table>
           </Box>

@@ -1,81 +1,117 @@
 import React, { useEffect, useState } from "react";
+import { BarChart } from "@mui/x-charts";  
+import {
+  Box,
+  CircularProgress,
+  Typography,
+} from "@mui/material";
 import axios from "axios";
-import { BarChart } from "@mui/x-charts";
-import { Box, CircularProgress, Typography } from "@mui/material";
- 
-const VerticalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
+
+const backendApi = import.meta.env.VITE_BACKEND_API;
+const token = localStorage.getItem("access_token");
+
+const VerticalBarChart = ({ startMonth, endMonth, topFilter }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const backendApi = import.meta.env.VITE_BACKEND_API;
- const token = localStorage.getItem("access_token")
- 
- 
-  const fetchData = async (startMonth,endMonth,topFilter) => {
+
+  const buildParams = () => {
+    const params = {};
+
+    if (startMonth && (!endMonth || startMonth === endMonth)) {
+      params.duration_month = startMonth;
+    }
+
+    if (startMonth && endMonth && startMonth !== endMonth) {
+      params.start_month = startMonth;
+      params.end_month = endMonth;
+    }
+
+    if (topFilter && topFilter !== "all") {
+      params.top = topFilter;
+    }
+
+    return params;
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
- 
-      const params = {
-        top: topFilter,
-      };
- 
-      const start = startMonth;
-      const end = endMonth;
- 
-      if (start) params.start_month = start;
-      if (end) params.end_month = end;
- 
-      console.log("PARAMS SENT TO BACKEND:", params);
- 
-      const res = await axios.get(`${backendApi}/dashboard/vertical-bar`, {
-         headers: { Authorization: `Bearer ${token}` },
-         params: params,
-       });
- 
-      console.log("BACKEND RESPONSE:", res.data);
-      setData(res.data || []);
+      const params = buildParams();
+
+      const res = await axios.get(`${backendApi}/dashboard/horizontal-bar`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        params: params,
+      });
+
+      const apiData = res.data.horizontal_bar || {};
+
+      const chartData = Object.keys(apiData).map((client) => ({
+        client,
+        ...apiData[client],
+      }));
+
+      setData(chartData);
     } catch (err) {
-      console.error("ERROR FETCHING DATA:", err);
+      console.error("Error fetching data:", err);
       setData([]);
     } finally {
       setLoading(false);
     }
   };
- 
- 
+
   useEffect(() => {
-    fetchData(startMonth,endMonth,topFilter);
+    fetchData();
   }, [startMonth, endMonth, topFilter]);
- 
- 
- 
-  const chartData = data.map((item) => ({
-    client: item.client || item.client_name,
-    total_allowances: item.total_allowances,
-    total_shifts:item.total_days
-  }));
- 
- 
+
+  const maxValue = Math.max(...data.map(d => d.total_unique_employees));
+
   return (
-    <Box sx={{ width: "100%", height: 400 }}>
+    <Box>
+      <Typography className="mb-2 font-semibold">
+        No. of Employees
+      </Typography>
+
       {loading ? (
         <CircularProgress />
-      ) : chartData.length === 0 ? (
-        <Typography>No data found</Typography>
+      ) : data.length === 0 ? (
+        <Typography>No data available.</Typography>
       ) : (
         <BarChart
-          dataset={chartData}
-  series={[
-    { dataKey: "total_allowances", label: "Total Allowances", color: "#3f51b5", yAxis: "left" },
-    { dataKey: "total_shifts", label: "Total Shifts", color: "#f50057", yAxis: "right" },
-  ]}
-          xAxis={[{ dataKey: "client", scaleType: "band" }]}
-     
-          width={800}
+          dataset={data.map((d) => ({
+            client: d.client,
+            total_unique_employees: d.total_unique_employees,
+          }))}
+          series={[
+            {
+              dataKey: "total_unique_employees",
+              label: "Employees",
+              barLabel: (item) => item.value, 
+              barLabelPlacement: "outside",
+            },
+          ]}
+          xAxis={[{ 
+            dataKey: "client", 
+            scaleType: "band", 
+           
+          }]}
+          yAxis={[{
+            scaleType: "linear",
+            min: 0,
+            max: maxValue,
+            tickValues: Array.from({ length: maxValue + 1 }, (_, i) => i),
+            valueFormatter: (value) => Number(value).toFixed(0),
+            label: "Number of Employees",
+            position: "left",
+          }]}
+          layout="vertical"
           height={400}
+          width={800}
         />
       )}
     </Box>
   );
 };
- 
+
 export default VerticalBarChart;

@@ -150,18 +150,13 @@ export const updateEmployeeShift = async (token , emp_id,
 };
 
 
-export const pieChart = async (token,start_month,end_month,topFilter) => {
+export const pieChart = async (token,startMonth,endMonth,topFilter) => {
   if (!token) throw new Error("Not authenticated");
   let params={}
-  if(start_month!==null && start_month!==undefined && start_month!==""){
-params[start_month]=start_month
-  }
-  if(end_month!==null && end_month!==undefined && end_month!==""){
-    params[end_month] = end_month
-  }
-  if(topFilter!==null && topFilter!==undefined && topFilter!==""){
-params["top"]=topFilter
-  }
+if (startMonth != null && startMonth !== "") params["start_month"] = startMonth;
+if (endMonth != null && endMonth !== "") params["end_month"] = endMonth;
+if (topFilter != null && topFilter !== "") params["top"] = topFilter;
+
  
   try {
     const response = await axios.get(`${backendApi}/dashboard/piechart`, {
@@ -238,71 +233,68 @@ export const fetchClientSummary = async (
 };
 
  
-export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
-  if (!token) throw new Error("Not authenticated");
-  if (!startMonth || !endMonth) {
-    throw new Error("Both startMonth and endMonth are required");
-  }
+// export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
+//   if (!token) throw new Error("Not authenticated");
+//   if (!startMonth || !endMonth) {
+//     throw new Error("Both startMonth and endMonth are required");
+//   }
  
-  const response = await axios.get(`${backendApi}/shift/interval-summary`, {
-    params: { start_month:startMonth, end_month:endMonth },
-    headers: { Authorization: `Bearer ${token}` },
-  });
+//   const response = await axios.get(`${backendApi}/shift/interval-summary`, {
+//     params: { start_month:startMonth, end_month:endMonth },
+//     headers: { Authorization: `Bearer ${token}` },
+//   });
  
-  return response.data;
-};
+//   return response.data;
+// };
  
+
+// export const fetchClientSummaryByAM = async (token, managerName) => {
+//   if (!token) throw new Error("Not authenticated");
  
-// Fetch ALL data for account manager
-export const fetchClientSummaryByAM = async (token, managerName) => {
-  if (!token) throw new Error("Not authenticated");
+//   try {
+//     const response = await axios.get(`${backendApi}/shift/interval-summary`, {
+//       params: { account_manager: managerName },
+//       headers: { Authorization: `Bearer ${token}` },
+//     });
+//     return response.data;
+//   } catch (err) {
+//     if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+//     if (err?.message) throw new Error(err.message);
+//     throw new Error("Unable to fetch account manager data.");
+//   }
+// };
  
-  try {
-    const response = await axios.get(`${backendApi}/shift/interval-summary`, {
-      params: { account_manager: managerName },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data;
-  } catch (err) {
-    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
-    if (err?.message) throw new Error(err.message);
-    throw new Error("Unable to fetch account manager data.");
-  }
-};
+// export const fetchClientSummaryByAMMonth = async (token, managerName, month) => {
+//   if (!token) throw new Error("Not authenticated");
  
-// Fetch ONE MONTH for account manager
-export const fetchClientSummaryByAMMonth = async (token, managerName, month) => {
-  if (!token) throw new Error("Not authenticated");
+//   try {
+//     const response = await axios.get(`${backendApi}/shift/interval-summary`, {
+//       params: { account_manager: managerName, payroll_month: month },
+//       headers: { Authorization: `Bearer ${token}` },
+//     });
+//     return response.data;
+//   } catch (err) {
+//     if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+//     if (err?.message) throw new Error(err.message);
+//     throw new Error("Unable to fetch account manager data for month.");
+//   }
+// };
  
-  try {
-    const response = await axios.get(`${backendApi}/shift/interval-summary`, {
-      params: { account_manager: managerName, payroll_month: month },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data;
-  } catch (err) {
-    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
-    if (err?.message) throw new Error(err.message);
-    throw new Error("Unable to fetch account manager data for month.");
-  }
-};
+// export const fetchClientSummaryByAMRange = async (token, managerName, startMonth, endMonth) => {
+//   if (!token) throw new Error("Not authenticated");
  
-// Fetch RANGE for account manager
-export const fetchClientSummaryByAMRange = async (token, managerName, startMonth, endMonth) => {
-  if (!token) throw new Error("Not authenticated");
- 
-  try {
-    const response = await axios.get(`${backendApi}/shift/interval-summary`, {
-      params: { account_manager: managerName, start_month: startMonth, end_month: endMonth },
-      headers: { Authorization: `Bearer ${token}` },
-    });    
-    return response.data;
-  } catch (err) {
-    if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
-    if (err?.message) throw new Error(err.message);
-    throw new Error("Unable to fetch account manager data for range.");
-  }
-};
+//   try {
+//     const response = await axios.get(`${backendApi}/shift/interval-summary`, {
+//       params: { account_manager: managerName, start_month: startMonth, end_month: endMonth },
+//       headers: { Authorization: `Bearer ${token}` },
+//     });    
+//     return response.data;
+//   } catch (err) {
+//     if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+//     if (err?.message) throw new Error(err.message);
+//     throw new Error("Unable to fetch account manager data for range.");
+//   }
+// };
  
  
 

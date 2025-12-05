@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import ClientDaysPieChart from "../visuals/ClientDaysPieChart";
-import HorizontalBarChart from "../visuals/HorizontalBarChart";
-import VerticalBarChart from "../visuals/VerticalBarChart";
+
 import GraphChart from "../visuals/GraphChart";
  
  
@@ -18,6 +17,9 @@ import {
   MenuItem,
   Button,
 } from "@mui/material";
+import VerticalBarChart from "../visuals/VerticalBarChart";
+import HorizontalBarChart from "../visuals/HorizontalBarChart";
+import TotalShifts from "../visuals/TotalShifts";
  
  
 const DashboardPage = () => {
@@ -26,7 +28,7 @@ const DashboardPage = () => {
   const [topFilter, setTopFilter] = useState("5");
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <div className="p-6 w-full h-full">
+      <div className="space-y-6 w-full h-full">
         <Box sx={{
           display:"flex",
           alignItems:"end",
@@ -134,15 +136,19 @@ Clear
             />
           </div>
            </div>
-          <div className=" p-6 w-full">
+         
             <VerticalBarChart
               startMonth={startMonth}
               endMonth={endMonth}
               topFilter={topFilter}
             />
-          </div>
-          <div className="relative rounded-xl p-6 w-full">
+          <div className="relative">
             <HorizontalBarChart
+              startMonth={startMonth}
+              endMonth={endMonth}
+              topFilter={topFilter}
+            />
+            <TotalShifts
               startMonth={startMonth}
               endMonth={endMonth}
               topFilter={topFilter}
