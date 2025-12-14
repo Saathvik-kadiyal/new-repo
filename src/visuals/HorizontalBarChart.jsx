@@ -17,17 +17,12 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
       if (startMonth) params.start_month = startMonth;
       if (endMonth) params.end_month = endMonth;
 
-      console.log("PARAMS SENT TO BACKEND:", params);
-
       const res = await axios.get(`${backendApi}/dashboard/vertical-bar`, {
         headers: { Authorization: `Bearer ${token}` },
         params: params,
       });
-
-      console.log("BACKEND RESPONSE:", res.data);
       setData(res.data || []);
     } catch (err) {
-      console.error("ERROR FETCHING DATA:", err);
       setData([]);
     } finally {
       setLoading(false);
@@ -39,7 +34,8 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
   }, [startMonth, endMonth, topFilter]);
 
   const chartData = data.map((item) => ({
-    client: item.client || item.client_name,
+    client:item.client_enum,
+    clientFull: item.client_full_name,
     total_allowances: item.total_allowances,
     total_shifts: item.total_days,
   }));
@@ -78,14 +74,6 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
               barLabel: (item) => `₹${formatCompact(item.value)}`,
               barLabelPlacement: "outside",
             },
-            // {
-            //   dataKey: "total_shifts",
-            //   label: "Total Shifts",
-            //   color: "#f50057",
-            //   yAxisKey: "clientAxis",
-            //   barLabel: (item) => item.value,
-            //   barLabelPlacement: "outside",
-            // },
           ]}
           yAxis={[
             {
@@ -98,6 +86,7 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
           ]}
           xAxis={[
             {
+               label: "Total Allowance spent",
               scaleType: "linear",
               min: 0,
               max: Math.max(maxValueAllowance, maxValueShifts)+50000,

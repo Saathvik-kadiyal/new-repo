@@ -39,7 +39,7 @@ const TotalShifts = ({ startMonth, endMonth, topFilter = "Top5" }) => {
   }, [startMonth, endMonth, topFilter]);
 
   const chartData = data.map((item) => ({
-    client: item.client || item.client_name,
+    client:item.client_enum,
     total_allowances: item.total_allowances,
     total_shifts: item.total_days,
   }));
@@ -99,6 +99,7 @@ const TotalShifts = ({ startMonth, endMonth, topFilter = "Top5" }) => {
           xAxis={[
             {
               scaleType: "linear",
+              label: "Total Number of Shifts Worked",
               min: 0,
               max: Math.max(maxValueShifts)+100,
               tickValues: Array.from(
@@ -106,6 +107,7 @@ const TotalShifts = ({ startMonth, endMonth, topFilter = "Top5" }) => {
                 (_, i) => i * 10
               ),
             },
+            
           ]}
          width={800}
           height={400}

@@ -132,6 +132,7 @@ const DataTable = ({ headers }) => {
         sortable: true,
         filterable: false,
         disableColumnMenu: true,
+          headerClassName: "custom-header",
       };
     }),
 
@@ -161,7 +162,6 @@ const DataTable = ({ headers }) => {
           sx={{
             minWidth: 0,
             padding: "4px",
-            backgroundColor: "transparent",
             "&:hover": { backgroundColor: "transparent" },
             "&:focus": { backgroundColor: "transparent" },
             "&:active": { backgroundColor: "transparent" },
@@ -377,6 +377,28 @@ const DataTable = ({ headers }) => {
 
         <Box sx={{ flex: 1, mt: 2 }}>
           <DataGrid
+           sx={{
+              flex: 1,
+              border: "none",
+              "& .custom-header .MuiDataGrid-columnHeaderTitle":{
+                fontWeight: "bold",
+              },
+              "& .MuiDataGrid-columnHeaders": {
+                fontWeight: "bold",
+              },
+              "& .MuiDataGrid-cell": {
+                borderBottom: "none",
+               
+              },
+              "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                outline: "none !important",
+              },
+              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within":
+                {
+                  outline: "none !important",
+                  
+                },
+            }}
             rows={displayRows}
             columns={columns}
             disableRowSelectionOnClick
@@ -405,24 +427,7 @@ const DataTable = ({ headers }) => {
                 </GridOverlay>
               ),
             }}
-            sx={{
-              flex: 1,
-              border: "none",
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: "transparent",
-                fontWeight: 100,
-              },
-              "& .MuiDataGrid-cell": {
-                borderBottom: "none",
-              },
-              "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
-                outline: "none !important",
-              },
-              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within":
-                {
-                  outline: "none !important",
-                },
-            }}
+           
           />
         </Box>
 

@@ -18,6 +18,7 @@ export const UI_HEADERS = [
   "Client",
   "Duration Month",
   "Payroll Month",
+  "Total Allowances"
 ];
 
 export const EXPORT_HEADERS = [
@@ -55,7 +56,8 @@ const FIELD_MAP = {
   client: "Client",
   duration_month: "Duration Month",
   payroll_month: "Payroll Month",
-  shift_details:"Shift Details"
+  shift_details:"Shift Details",
+  total_allowances:"Total Allowances"
 };
 
 const backendApi = import.meta.env.VITE_BACKEND_API;
@@ -275,7 +277,6 @@ const downloadSearchData = useCallback(async (searchState) => {
       if (searchBy === "Account Manager") params.account_manager = query.trim();
     }
 
-    /** --- Validate: at least one filter required --- */
     if (!Object.keys(params).length) {
       return alert(
         "Please enter a search query or select month(s) to download data."

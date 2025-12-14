@@ -29,30 +29,40 @@ const ClientDaysPieChart = ({ startMonth, endMonth, topFilter }) => {
  
      
       if (Array.isArray(res)) {
-        formatted = res.map((c, i) => ({
-          id: c.client_name,
-          label: c.client_name,
+        formatted = res.map((c, i) => {
+          console.log("details",c)
+          return({
+          id: c.client,
+          label: c.client_enum,
           value: c.total_days || (c.shift_a + c.shift_b + c.shift_c + c.prime),
           color: COLORS[i % COLORS.length],
           details: c,
-        }));
+        })
+        });
       } else if (typeof res === "object" && !Array.isArray(res)) {
         const keys = Object.keys(res);
         if (keys.length === 1 && Array.isArray(res[keys[0]])) {
          
           const arr = res[keys[0]];
-          formatted = arr.map((c, i) => ({
-            id: c.client_name,
-            label: c.client_name,
-            value: c.total_days || (c.shift_a_days + c.shift_b_days + c.shift_c_days + c.prime_days),
-            color: COLORS[i % COLORS.length],
+          console.log(arr)
+          formatted = arr.map((details,color) => {
+            console.log("hi",details)
+            return(
+              ({
+          
+            id: details.client,
+            label: details.client_name,
+            value: details.total_days || (c.shift_a_days + c.shift_b_days + c.shift_c_days + c.prime_days),
+            color: COLORS[color % COLORS.length],
             details: c,
-          }));
+          })
+            )
+          });
         } else {
          
           formatted = [{
-            id: res.client_name,
-            label: res.client_name,
+            id: res.client,
+            label: res.client,
             value: res.total_days || (res.shift_a + res.shift_b + res.shift_c + res.prime),
             color: COLORS[0],
             details: res,
@@ -103,9 +113,8 @@ const ClientDaysPieChart = ({ startMonth, endMonth, topFilter }) => {
   }, [chartData]);
  
   return (
-    <div className="flex flex-col gap-3 p-1">
+    <div className="flex flex-col gap-3 p-1 items-center pt-8">
       <div className="flex flex-row justify-between align-middle">
-        <Typography variant="subtitle1">Client vs Shifts</Typography>
       </div>
  
       <div className="flex gap-3 items-start py-4">

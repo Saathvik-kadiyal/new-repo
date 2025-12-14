@@ -204,30 +204,28 @@ export const fetchHorizontalBar = async (token, startMonth, endMonth, topFilter)
 
 export const fetchClientSummary = async (
   token,
-  client = "ALL",
-  account_manager = "",
-  start_month = "",
-  end_month = ""
+  payload
 ) => {
   if (!token) throw new Error("Not authenticated");
 
   try {
-    const response = await axios.get(`${backendApi}/client-summary`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: {
-        client,
-        account_manager,
-        start_month,
-        end_month,
-      },
-    });
-    console.log(response)
+    const response = await axios.post(
+      `${backendApi}/client-summary`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
     return response.data;
   } catch (err) {
     throw new Error(
       err?.response?.data?.detail ||
-      err?.message ||
-      "Unable to fetch summary data."
+        err?.message ||
+        "Unable to fetch summary data."
     );
   }
 };
@@ -372,6 +370,18 @@ export const fetchClientComparison = async (
   }
 };
 
+export const fetchClientDepartments = async () => {
+  const token = localStorage.getItem("access_token");
+  try {
+    const reponse = await axios.get(`${backendApi}/client-departments`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    return reponse.data;
+  } catch (error) {
+    return error
+  }
+}
 
 export const fetchClients = async () => {
   const token = localStorage.getItem("access_token");
