@@ -12,6 +12,34 @@ export const debounce = (fn, delay) => {
 };
 
 
+export const fetchDashboardClientSummary = async (
+  payload
+) => {
+  const token = localStorage.getItem("access_token");
+  if (!token) throw new Error("Not authenticated");
+
+  try {
+    const response = await axios.post(
+      `${backendApi}/dashboard/client-allowance-summary`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  } catch (err) {
+    throw new Error(
+      err?.response?.data?.detail ||
+        err?.message ||
+        "Unable to fetch summary data."
+    );
+  }
+};
+
+
 export const fetchEmployees = async ({
   token,
   start = 0,
@@ -81,11 +109,8 @@ export const uploadFile = async (token, file) => {
 
     return response.data;
   } catch (err) {
-    // Backend sent response
     if (err.response) {
       const { status, data } = err.response;
-
-      // Create a proper Error object so UI can catch it correctly
       const error = new Error(
         typeof data?.detail === "string"
           ? data.detail
@@ -96,13 +121,9 @@ export const uploadFile = async (token, file) => {
       error.detail = data?.detail;
       throw error;
     }
-
-    // No response from backend
     if (err.request) {
       throw new Error("No response from server. Please try again later.");
     }
-
-    // Any other client-side error
     throw new Error(err.message || "File upload failed");
   }
 };
@@ -203,9 +224,9 @@ export const fetchHorizontalBar = async (token, startMonth, endMonth, topFilter)
  
 
 export const fetchClientSummary = async (
-  token,
   payload
 ) => {
+  const token = localStorage.getItem("access_token");
   if (!token) throw new Error("Not authenticated");
 
   try {
@@ -219,7 +240,6 @@ export const fetchClientSummary = async (
         },
       }
     );
-
     return response.data;
   } catch (err) {
     throw new Error(
