@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
 import DataTable from "../component/DataTable.jsx";
-import { Tooltip } from "@mui/material";
-import { useEmployeeData, UI_HEADERS } from "../hooks/useEmployeeData.jsx";
-
 import {
   Box,
   Button,
@@ -10,20 +7,26 @@ import {
   Stack,
   Modal,
   Paper,
-  CircularProgress,
+  IconButton,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import EditIcon from "@mui/icons-material/Edit";
+import { useNavigate } from "react-router-dom";
+
+import { useEmployeeData, UI_HEADERS } from "../hooks/useEmployeeData.jsx";
 
 const FileInput = () => {
-  const [searchState, setSearchState] = useState({ query: "", searchBy: "" });
+  const navigate = useNavigate();
   const [fileName, setFileName] = useState("");
   const [errorModalOpen, setErrorModalOpen] = useState(false);
 
   const {
     rows,
-    loading,
+    setRows,
     error,
     errorFileLink,
     setErrorFileLink,
+    errorRows,
     totalRecords,
     getProcessedData,
     fetchDataFromBackend,
@@ -36,10 +39,9 @@ const FileInput = () => {
     const file = e.target.files[0];
     if (!file) return;
     setFileName(file.name);
-    fetchDataFromBackend(file);
-      setTimeout(() => {
-    setFileName(null);
-  }, 3000);
+    const token = localStorage.getItem("access_token");
+    fetchDataFromBackend(file, token);
+    setTimeout(() => setFileName(null), 3000);
   };
 
   useEffect(() => {
@@ -50,129 +52,99 @@ const FileInput = () => {
     if (success) getProcessedData(0, 10);
   }, [success]);
 
+  const safeErrorRows = errorRows || [];
+
   return (
-    <Box sx={{ width: "100%", pt: 2, pb:4 }}>
-      <Typography variant="h5" fontWeight={600} mb={2} color="text.primary">
+    <Box sx={{ width: "100%", pt: 2, pb: 4 }}>
+      <Typography variant="h5" fontWeight={600} mb={2}>
         Shift Allowance Data
       </Typography>
 
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        spacing={2}
-        alignItems="center"
-        justifyContent="space-between"
-        mb={3}
-      >
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Tooltip title="Upload an Excel file">
-          <Button
-            variant="contained"
-            component="label"
-            sx={{ textTransform: "none", px: 2, py: 1  }}
-          >
-            Upload Excel
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              hidden
-              onChange={handleFileChange}
-            />
-          </Button>
-          </Tooltip>
-          {fileName && (
-            <Typography variant="body2" color="text.secondary">
-              {fileName}
-            </Typography>
-          )}
-        </Stack>
-        <Tooltip title="Download sample Excel format">
-        <Button
-          variant="outlined"
-          size="small"
-          disabled={loading}
-          onClick={downloadExcel}
-          sx={{ textTransform: "none", px: 2, py: 1  }}
-          color="success"
-        >
-          {loading ? <CircularProgress size={18} sx={{ color: "#fff" }} /> : "Download Template"}
+      <Stack direction="row" spacing={2} mb={3}>
+        <Button variant="contained" component="label">
+          Upload Excel
+          <input type="file" hidden onChange={handleFileChange} />
         </Button>
-        </Tooltip>
+        <Button variant="outlined" onClick={downloadExcel}>
+          Download Template
+        </Button>
+        {fileName && <Typography>{fileName}</Typography>}
       </Stack>
-      {success && (
-        <Typography color="success.main" mb={1} fontWeight={500}>
-          {success}
-        </Typography>
-      )}
 
-      {loading && (
-        <Typography color="primary.main" mb={1}>
-          Loading...
-        </Typography>
-      )}
+      {error && <Typography color="error">{error}</Typography>}
+      {success && <Typography color="success.main">{success}</Typography>}
 
-      {error && (
-        <Typography color="error.main" mb={1}>
-          {error}
-        </Typography>
-      )}
-
-      <Modal open={errorModalOpen} onClose={() => setErrorModalOpen(false)}>
-        <Box
-          component={Paper}
+      {/* 🔹 Error Modal */}
+      <Modal
+        open={errorModalOpen}
+        onClose={() => {
+          setErrorModalOpen(false);
+          setErrorFileLink && setErrorFileLink(null);
+        }}
+      >
+        <Paper
           sx={{
-            width: 450,
-            p: 4,
+            width: "60%",
+            maxWidth: 600,
+            p: 3,
             mx: "auto",
-            mt: "15vh",
+            mt: "10vh",
+            overflow: "auto",
+            position: "relative",
             borderRadius: 2,
-            outline: "none",
           }}
         >
-          <Typography variant="h6" fontWeight={600} mb={2}>
+          <IconButton
+            sx={{ position: "absolute", right: 12, top: 12 }}
+            onClick={() => {
+              setErrorModalOpen(false);
+              setErrorFileLink && setErrorFileLink(null);
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+
+          <Typography variant="h6" mb={2}>
             File Upload Errors
           </Typography>
-          <Typography variant="body2" mb={3}>
-            Some rows could not be processed. Please download the error file
-            for details.
-          </Typography>
 
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button
-              variant="contained"
-              color="warning"
-              sx={{ textTransform: "none" }}
-              onClick={() => {
-                downloadErrorExcel(errorFileLink);
-                setErrorModalOpen(false);
-                setTimeout(()=>{
-setErrorFileLink(null)
-                },2000)
-              }}
-            >
-              Download Error File
-            </Button>
+          <Stack direction="column" spacing={2} mb={2}>
+            {safeErrorRows.length === 0 && (
+              <Typography>No error rows available</Typography>
+            )}
 
-            <Button
-              variant="outlined"
-              sx={{ textTransform: "none" }}
-              onClick={() => {setErrorModalOpen(false)
-                setTimeout(()=>{
-setErrorFileLink(null)
-                },2000)
-              }}
-            >
-              Close
-            </Button>
+            {safeErrorRows.length > 0 && (
+              <Stack direction="row" spacing={2}>
+                <Button
+                  variant="contained"
+                  startIcon={<EditIcon />}
+                  onClick={() => {
+                    navigate("/shift-allowance/edit", { state: { errorRows: safeErrorRows } });
+                    setErrorModalOpen(false);
+                  }}
+                >
+                  Edit
+                </Button>
+                {errorFileLink && (
+                  <Button
+                    variant="outlined"
+                    onClick={() => downloadErrorExcel(errorFileLink)}
+                  >
+                    Download Error File
+                  </Button>
+                )}
+              </Stack>
+            )}
           </Stack>
-        </Box>
+        </Paper>
       </Modal>
 
+      {/* 🔹 Data Table */}
       <DataTable
         headers={UI_HEADERS}
-        rows={rows}
-        totalRecords={totalRecords}
+        rows={rows || []}
+        totalRecords={totalRecords || 0}
         fetchPage={getProcessedData}
-        onSearchChange={(s) => setSearchState(s)}
       />
     </Box>
   );

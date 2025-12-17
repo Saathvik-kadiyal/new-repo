@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { PieChart } from "@mui/x-charts/PieChart";
-import { pieChart } from "../utils/helper";
+import { pieChart } from "../utils/helper.js";
 import { Typography, Checkbox, FormControlLabel } from "@mui/material";
  
 const COLORS = [

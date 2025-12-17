@@ -1,14 +1,13 @@
-import { useState, useCallback, useEffect } from "react";
-import * as XLSX from "xlsx";
-import axios from "axios";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   fetchEmployees,
   fetchEmployeeDetail,
   uploadFile,
   debounce,
-  fetchEmployeesByMonthRange,
+  toBackendMonthFormat,
 } from "../utils/helper.js";
 
+/* ================= HEADERS ================= */
 export const UI_HEADERS = [
   "Emp ID",
   "Emp Name",
@@ -18,6 +17,7 @@ export const UI_HEADERS = [
   "Client",
   "Duration Month",
   "Payroll Month",
+  "Total Allowances",
 ];
 
 export const EXPORT_HEADERS = [
@@ -25,214 +25,169 @@ export const EXPORT_HEADERS = [
   "Project",
   "Practice Lead/ Head",
   "Delivery/ Project Manager",
-  "Duration Month",
-  "Payroll Month",
   "Shift A\n(09 PM to 06 AM)\nINR 500",
   "Shift B\n(04 PM to 01 AM)\nINR 350",
   "Shift C\n(06 AM to 03 PM)\nINR 100",
   "Prime\n(12 AM to 09 AM)\nINR 700",
   "TOTAL DAYS",
-  "Timesheet Billable Days",
-  "Timesheet Non Billable Days",
-  "Diff",
-  "Final Total Days",
-  "Billability Status",
-  "Practice Remarks",
-  "RMG Comments",
-  "Amar Approval",
-  "Shift A Allowances",
-  "Shift B Allowances",
-  "Shift C Allowances",
-  "Prime Allowances",
 ];
 
+/* ================= FIELD MAP ================= */
 const FIELD_MAP = {
   emp_id: "Emp ID",
   emp_name: "Emp Name",
   department: "Department",
-  project_code: "Project Code",
   account_manager: "Account Manager",
   client: "Client",
   duration_month: "Duration Month",
   payroll_month: "Payroll Month",
-  shift_details:"Shift Details"
+  shift_details: "Shift Details",
+  total_allowance: "Total Allowances",
 };
 
-const backendApi = import.meta.env.VITE_BACKEND_API;
+/* ================= HELPERS ================= */
+const mapBackendToUI = (row) => {
+  const uiRow = {};
+  Object.entries(FIELD_MAP).forEach(([key, label]) => {
+    uiRow[label] = row[key] ?? "";
+  });
+  return uiRow;
+};
 
+const buildSearchParams = (filters) => {
+  const params = {};
+  if (filters.emp_id) params.emp_id = filters.emp_id;
+  if (filters.account_manager) params.account_manager = filters.account_manager;
+  if (filters.department) params.department = filters.department;
+  if (filters.client) params.client = filters.client;
+  if (filters.start_month) params.start_month = toBackendMonthFormat(filters.start_month);
+  if (filters.end_month) params.end_month = toBackendMonthFormat(filters.end_month);
+  return params;
+};
+
+/* ================= HOOK ================= */
 export const useEmployeeData = () => {
+  const token = localStorage.getItem("access_token");
+  const didInitialFetch = useRef(false);
+
+  /* ---------- STATE ---------- */
   const [rows, setRows] = useState([]);
   const [displayRows, setDisplayRows] = useState([]);
-  const [totalRecords, setTotalRecords] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+
   const [loading, setLoading] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState("");
-  const [errorFileLink, setErrorFileLink] = useState(null);
+
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [modelOpen, setModelOpen] = useState(false);
-  const [onSave, setOnSave] = useState(false);
-  const [success,setSuccess]=useState('')
-  
-  useEffect(() => {
-  if (success) {
-    const timer = setTimeout(() => setSuccess(""), 4000);
-    return () => clearTimeout(timer);
-  }
-}, [success]);
 
-  const token = localStorage.getItem("access_token");
+  const [filters, setFilters] = useState({});
+  const [shiftSummary, setShiftSummary] = useState(null);
 
+  // File upload states
+  const [errorRows, setErrorRows] = useState([]);
+  const [errorFileLink, setErrorFileLink] = useState(null);
+  const [success, setSuccess] = useState("");
 
-  const resetState = useCallback(() => {
-    setRows([]);
-    setDisplayRows([]);
-    setTotalRecords(0);
-    setError("");
-    setErrorFileLink(null);
-    setSelectedEmployee(null);
-    setModelOpen(false);
-  }, []);
-
-const getProcessedData = useCallback(
-  async (start = 0, limit = 10) => {
-    if (!token) return;
-    try {
-      setLoading(true);
-
-      const data = await fetchEmployees({ token, start, limit });
-
-      const mappedRows = data.data.map((item, index) => ({
-        id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
-        emp_id: item.emp_id,
-        "Duration Month": item.duration_month,
-        "Payroll Month": item.payroll_month,
-        ...Object.fromEntries(
-          Object.entries(FIELD_MAP).map(([key, label]) => [label, item[key] ?? ""])
-        ),
-      }));
-
-      setRows(mappedRows);
-      setTotalRecords(data.total_records || mappedRows.length);
-      setTotalPages(Math.ceil((data.total_records || mappedRows.length) / limit));
-      setError("");
-    } catch (err) {
-      setError("Failed to fetch data");
-      setRows([]);
-      setTotalPages(0);
-    } finally {
-      setLoading(false);
-    }
-  },
-  [token]
-);
-
-
-
-const debouncedFetch = useCallback(
-  debounce(async (params, page = 1) => {
-    try {
+  /* ================= FETCH EMPLOYEES ================= */
+  const getProcessedData = useCallback(
+    async (start = 0, limit = 10, params = {}) => {
       if (!token) return;
+      try {
+        setLoading(true);
+        const res = await fetchEmployees({ token, start, limit, params });
+        const employees = res?.data?.employees || res?.data || [];
 
-      const start = (page - 1) * 10;
+        // Shift summary row (last object without emp_id)
+        const summaryRow = employees.find((e) => !e.emp_id);
+        const employeeRows = employees.filter((e) => e.emp_id);
 
-      const data = await fetchEmployees({
-        token,
-        start,
-        limit: 10,
-        params,
-      });
+        if (summaryRow) {
+          setShiftSummary({
+            shiftA: summaryRow.shift_details?.["A(9PM to 6AM)"] ?? 0,
+            shiftB: summaryRow.shift_details?.["B(4PM to 1AM)"] ?? 0,
+            shiftC: summaryRow.shift_details?.["C(6AM to 3PM)"] ?? 0,
+            prime: summaryRow.shift_details?.["PRIME(12AM to 9AM)"] ?? 0,
+            total: summaryRow.total_allowance ?? 0,
+          });
+        } else {
+          setShiftSummary(null);
+        }
 
-      const mappedRows = data.data.map((item, index) => ({
-        id: `${item.emp_id}-${item.payroll_month}-${item.duration_month}-${index}`,
-        emp_id: item.emp_id,
-        "Duration Month": item.duration_month,
-        "Payroll Month": item.payroll_month,
-        ...Object.fromEntries(
-          Object.entries(FIELD_MAP).map(([k, v]) => [v, item[k] ?? ""])
-        ),
-      }));
+        const mapped = employeeRows.map((item, idx) => ({
+          id: `${item.emp_id}-${item.duration_month}-${item.payroll_month}-${idx}`,
+          ...mapBackendToUI(item),
+          __fullEmployee: item, // preserve full object for modal
+        }));
 
-      setRows(mappedRows);
-      console.log(mappedRows)
-      setTotalRecords(data.total_records || mappedRows.length);
-      setTotalPages(Math.ceil((data.total_records || mappedRows.length) / 10));
-      setError("");
-    } catch (err) {
-      setError("Something went wrong");
-      console.error(err);
-    }
-  }, 500),
-  [token]
-);
+        setRows(mapped);
+        setDisplayRows(mapped);
+        setTotalRecords(res.total_records || mapped.length);
+        setTotalPages(Math.ceil((res.total_records || mapped.length) / limit));
+        setError("");
+      } catch (err) {
+        console.error(err);
+        setError("Failed to fetch data");
+        setRows([]);
+        setDisplayRows([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token]
+  );
 
+  /* ================= FILTER APPLY ================= */
+  const applyFilters = useCallback(
+    async (newFilters, pageNo = 1) => {
+      setFilters(newFilters);
+      setPage(pageNo);
+      const params = buildSearchParams(newFilters);
+      const start = (pageNo - 1) * 10;
+      await getProcessedData(start, 10, params);
+    },
+    [getProcessedData]
+  );
 
+  /* ================= DEBOUNCED FETCH ================= */
+  const debouncedFetch = useCallback(
+    debounce(async (params, pageNo = 1) => {
+      const start = (pageNo - 1) * 10;
+      await getProcessedData(start, 10, params);
+    }, 500),
+    [getProcessedData]
+  );
 
-
+  /* ================= INIT LOAD ================= */
   useEffect(() => {
-    setDisplayRows(rows);
-  }, [rows]);
+    if (didInitialFetch.current) return;
+    didInitialFetch.current = true;
+    getProcessedData(0, 10);
+  }, [getProcessedData]);
 
-const fetchDataFromBackend = useCallback(
-  async (file) => {
-    if (!token) return;
-    resetState();
-    setLoading(true);
+  /* ================= PAGINATION ================= */
+  const handlePageChange = useCallback(
+    (newPage) => {
+      setPage(newPage);
+      const params = buildSearchParams(filters);
+      const start = (newPage - 1) * 10;
+      getProcessedData(start, 10, params);
+    },
+    [filters, getProcessedData]
+  );
 
-    try {
-      const res = await uploadFile(token, file);
-
-      setSuccess(res.message || "File processed successfully");
-    } 
-  catch (err) {
-    console.log(err)
-  if (err) {
-    const {status,detail} = err
-    console.log(detail)
-    if (detail) {
-
-      if (detail.message) setError(detail.message);
-      if (detail.error_file) setErrorFileLink(detail.error_file);
-
-      
-      return;
-    }
-    setError(detail || "Unexpected server error");
-  } else {
-    setError("Network error, please try again");
-  }
-}
-
-    finally {
-      setLoading(false);
-      setTimeout(() => getProcessedData(0, 10), 200);
-    }
-  },
-  [token, resetState, page, getProcessedData]
-);
-
-
-
-
-  const clearErrorFile = () => setErrorFileLink("");
-
-  const getEmployeeDetailHandler = useCallback(
+  /* ================= EMPLOYEE DETAIL MODAL ================= */
+  const handleIndividualEmployee = useCallback(
     async (emp_id, duration_month, payroll_month) => {
       if (!token) return;
       try {
         setLoadingDetail(true);
-        const emp = await fetchEmployeeDetail(
-          token,
-          emp_id,
-          duration_month,
-          payroll_month
-        );
+        const emp = await fetchEmployeeDetail(token, emp_id, duration_month, payroll_month);
         setSelectedEmployee(emp);
         setModelOpen(true);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to fetch employee details");
       } finally {
         setLoadingDetail(false);
       }
@@ -240,131 +195,68 @@ const fetchDataFromBackend = useCallback(
     [token]
   );
 
-  const handleIndividualEmployee = useCallback(
-    (emp_id, duration_month, payroll_month) =>
-      getEmployeeDetailHandler(emp_id, duration_month, payroll_month),
-    [getEmployeeDetailHandler]
+  /* ================= FILE UPLOAD HANDLER ================= */
+  const fetchDataFromBackend = useCallback(
+    async (file) => {
+      if (!token) return;
+      setLoading(true);
+      setError("");
+      setErrorRows([]);
+      setErrorFileLink(null);
+      setSuccess("");
+
+      try {
+        const res = await uploadFile(token, file);
+        setSuccess(res.message || "File uploaded successfully");
+      } catch (err) {
+        if (err?.detail) {
+          if (err.detail.message) setError(err.detail.message);
+          if (err.detail.error_file) setErrorFileLink(err.detail.error_file);
+          if (err.detail.error_rows) setErrorRows(err.detail.error_rows);
+        } else {
+          setError("Network error, please try again");
+        }
+      } finally {
+        setLoading(false);
+        setTimeout(() => getProcessedData(0, 10), 200);
+      }
+    },
+    [token, getProcessedData]
   );
 
- const downloadExcel = useCallback(() => {
-  const headers = EXPORT_HEADERS;
-  const exportData = [Object.fromEntries(headers.map(h => [h, ""]))];
-
-  const ws = XLSX.utils.json_to_sheet(exportData, { header: headers, skipHeader: false });
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Employee Data");
-
-  XLSX.writeFile(wb, "Allowance_Template.xlsx");
-}, []);
-
-
-const downloadSearchData = useCallback(async (searchState) => {
-  try {
-    const token = localStorage.getItem("access_token");
-    const params = {};
-
-    if (searchState.startMonth) {
-      params.start_month = searchState.startMonth;
-      if (searchState.endMonth) params.end_month = searchState.endMonth;
-    }
-
-    if (searchState.query?.trim()) {
-      const { query, searchBy } = searchState;
-
-      if (searchBy === "Emp ID") params.emp_id = query.trim();
-      if (searchBy === "Account Manager") params.account_manager = query.trim();
-    }
-
-    /** --- Validate: at least one filter required --- */
-    if (!Object.keys(params).length) {
-      return alert(
-        "Please enter a search query or select month(s) to download data."
-      );
-    }
-
-    const response = await axios.get(`${backendApi}/excel/download`, {
-      params,
-      responseType: "blob",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    /** ---------- DOWNLOAD EXCEL ---------- */
-    const blob = new Blob([response.data], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "Allowance_Data.xlsx");
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-
-  } catch (err) {
-    console.error(err);
-    alert(err?.response?.data?.detail || "Failed to download search data");
-  }
-}, []);
-
-
-  const downloadErrorExcel = useCallback(async () => {
-    if (!errorFileLink) return alert("No error file available");
-    console.log(errorFileLink)
-    try {
-      const response = await axios.get(`${backendApi}/upload/error-files/${errorFileLink}`, {
-        responseType: "blob",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const blob = new Blob([response.data]);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "Error_File.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert("Download failed");
-    }
-  }, [errorFileLink, token]);
-
-  const handlePageChange = useCallback((newPage) => setPage(newPage), []);
-
-  useEffect(() => {
-    getProcessedData(0, 10);
-  }, []);
-
+  /* ================= RETURN ================= */
   return {
     UI_HEADERS,
     EXPORT_HEADERS,
+
     rows,
     displayRows,
-    totalRecords,
-    totalPages,
     page,
+    totalPages,
+    totalRecords,
+
     loading,
     loadingDetail,
     error,
-    errorFileLink,
+
     selectedEmployee,
     modelOpen,
     setModelOpen,
-    fetchDataFromBackend,
+
+    filters,
+    shiftSummary,
+
     getProcessedData,
-    getEmployeeDetail: getEmployeeDetailHandler,
-    downloadExcel,
-    downloadSearchData,
-    downloadErrorExcel,
-    handleIndividualEmployee,
-    resetState,
+    applyFilters,
     debouncedFetch,
-    onSave,
-    setOnSave,
     handlePageChange,
-    clearErrorFile,
-    success
+    handleIndividualEmployee,
+
+    // File upload related
+    fetchDataFromBackend,
+    errorRows,
+    setErrorRows,
+    errorFileLink,
+    success,
   };
 };

@@ -107,6 +107,8 @@ const HorizontalBarChart = ({ startMonth, endMonth, topFilter = "Top5" }) => {
               ),
             },
           ]}
+          
+
          width={800}
           height={400}
         />

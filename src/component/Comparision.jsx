@@ -14,6 +14,7 @@ import {
   TableBody,
   Paper,
 } from "@mui/material";
+import StackedBarChart from "./StackedBarChart";
 
 const Comparision = () => {
   const [clients, setClients] = useState(["ATD", "Roche"]);
@@ -168,7 +169,8 @@ const Comparision = () => {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", flexDirection: "row", gap: 2 }}>
+      <Box>
+        <Box sx={{ display: "flex", flexDirection: "row", gap: 2 }}>
         <Box>
           <FormControl sx={{ width: 200 }}>
             <InputLabel>Client</InputLabel>
@@ -272,7 +274,7 @@ const Comparision = () => {
                   sx={{
                     fontWeight: "bold",
                     background: "black",
-                    color: "white",
+                    // color: "white",
                     width: 150,
                     backgroundColor: highlightMonth === m ? "#ffe36e" : "black",
                     color: highlightMonth === m ? "black" : "white",
@@ -335,6 +337,11 @@ const Comparision = () => {
           </TableBody>
         </Table>
       </Box>
+      </Box>
+      </Box>
+
+      <Box>
+        <StackedBarChart/>
       </Box>
     </Box>
   );
