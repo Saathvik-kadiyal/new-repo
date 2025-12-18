@@ -1,8 +1,4 @@
-import {
-  Home,
-  NotebookPen,
-  User,
-} from "lucide-react";
+import { Home, NotebookPen, User } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 
@@ -20,7 +16,8 @@ const Sidebar = () => {
         <ul className="flex flex-col gap-1">
           <li>
             <NavLink
-              onClick={() => setPanelOpen((prev) => !prev)} 
+              to={"/"}
+              // onClick={() => setPanelOpen((prev) => !prev)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-lg transition
                   ${
@@ -82,13 +79,16 @@ const Sidebar = () => {
         `}
         style={{ width: "12rem" }}
       >
-
         <ul className="flex flex-col gap-3">
           <NavLink
             to="/"
             className={({ isActive }) =>
               `px-2 py-2 rounded-lg transition 
-              ${isActive ? "text-white bg-indigo-800" : "text-indigo-800 hover:text-blue-200"}`
+              ${
+                isActive
+                  ? "text-white bg-indigo-800"
+                  : "text-indigo-800 hover:text-blue-200"
+              }`
             }
           >
             Dashboard
@@ -98,7 +98,11 @@ const Sidebar = () => {
             to="/comparison"
             className={({ isActive }) =>
               `px-2 py-2 rounded-lg transition 
-              ${isActive ? "text-white bg-indigo-800" : "text-indigo-800 hover:text-blue-200"}`
+              ${
+                isActive
+                  ? "text-white bg-indigo-800"
+                  : "text-indigo-800 hover:text-blue-200"
+              }`
             }
           >
             Comparison

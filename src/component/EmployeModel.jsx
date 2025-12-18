@@ -18,17 +18,16 @@ const EmployeeModal = ({ employee, onClose, loading }) => {
   }, [employee]);
 
   useEffect(() => {
-  if (success) {
-    const timer = setTimeout(() => setSuccess(""), 3000);
-    return () => clearTimeout(timer);
-  }
-}, [success]);
-
+    if (success) {
+      const timer = setTimeout(() => setSuccess(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   if ((!employee && !loading) || !data) return null;
 
   const updateShift = (key, value) => {
-    setData(prev => ({ ...prev, [key]: value }));
+    setData((prev) => ({ ...prev, [key]: value }));
   };
 
   const resetChanges = () => {
@@ -37,40 +36,52 @@ const EmployeeModal = ({ employee, onClose, loading }) => {
     setError("");
   };
 
- const handleSave = async () => {
-  try {
-    setSaving(true);
-    setError("");
-    setSuccess("");
-    const token = localStorage.getItem("access_token");
-    const payload = {
-      shift_a: String(data.A || 0),
-      shift_b: String(data.B || 0),
-      shift_c: String(data.C || 0),
-      prime: String(data.PRIME || 0),
-    };
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+      const token = localStorage.getItem("access_token");
+      const payload = {
+        shift_a: String(data.A || 0),
+        shift_b: String(data.B || 0),
+        shift_c: String(data.C || 0),
+        prime: String(data.PRIME || 0),
+      };
 
-    await updateEmployeeShift(
-      token,
-      data.emp_id,
-      data.duration_month,
-      data.payroll_month,
-      payload
-    );
+      await updateEmployeeShift(
+        token,
+        data.emp_id,
+        data.duration_month,
+        data.payroll_month,
+        payload
+      );
 
-    setIsEditing(false);
-    setOnSave(true);
-    setSuccess("Shift updated successfully");
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setSaving(false);
-  }
-};
-
+      setIsEditing(false);
+      setOnSave(true);
+      setSuccess("Shift updated successfully");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fieldsToShow = { ...data };
-  ["A", "B", "C", "PRIME", "emp_id", "emp_name"].forEach((key) => delete fieldsToShow[key]);
+  ["A", "B", "C", "PRIME", "emp_id", "emp_name"].forEach(
+    (key) => delete fieldsToShow[key]
+  );
+
+  const formatDateDisplay = (value) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (isNaN(d)) return value;
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   return (
     <div
@@ -96,26 +107,50 @@ const EmployeeModal = ({ employee, onClose, loading }) => {
           </button>
         </div>
 
-        <div className="p-4 space-y-6">
+        <div className="px-4 space-y-6">
+          <div>
+            <Info
+              label="Duration Month"
+              value={formatDateDisplay(
+                data.duration_month ? data.duration_month + "-01" : null
+              )}
+            />
+          </div>
 
-          {/* Row 1 — Employee ID & Name */}
           <div className="grid grid-cols-2 gap-4">
             <Info label="Employee ID" value={data.emp_id} />
             <Info label="Employee Name" value={data.emp_name} />
           </div>
 
-          {/* 3-column auto-wrap — All other fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {Object.entries(fieldsToShow).map(([key, value]) => (
-              <Info key={key} label={formatLabel(key)} value={String(value) || "-"} />
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
+            {Object.entries(fieldsToShow)
+              .filter(([key]) => key !== "id" && key !== "duration_month")
+              .map(([key, value]) => {
+                const isDateField = [
+                  "payroll_month",
+                  "created_at",
+                  "updated_at",
+                ].includes(key);
+                const formattedValue = isDateField
+                  ? formatDateDisplay(value)
+                  : String(value) || "-";
+
+                return (
+                  <Info
+                    key={key}
+                    label={formatLabel(key)}
+                    value={formattedValue}
+                  />
+                );
+              })}
           </div>
 
-          {/* Editable Shift Inputs */}
           <div className="grid grid-cols-4 gap-4 mt-4">
             {SHIFT_KEYS.map((key) => (
               <div key={key} className="p-3 border rounded-lg bg-gray-50">
-                <p className="text-xs font-semibold text-gray-700">{UI_LABEL[key]}</p>
+                <p className="text-xs font-semibold text-gray-700">
+                  {UI_LABEL[key]}
+                </p>
                 {isEditing ? (
                   <input
                     type="number"
@@ -133,13 +168,17 @@ const EmployeeModal = ({ employee, onClose, loading }) => {
           </div>
 
           {error && <p className="text-lg text-red-600 text-center">{error}</p>}
-{success && <p className="text-lg text-green-600 text-center">{success}</p>}
-
+          {success && (
+            <p className="text-lg text-green-600 text-center">{success}</p>
+          )}
 
           <div className="flex justify-end gap-3 pt-3">
             {isEditing ? (
               <>
-                <button className="px-4 py-2 border rounded-lg" onClick={resetChanges}>
+                <button
+                  className="px-4 py-2 border rounded-lg"
+                  onClick={resetChanges}
+                >
                   Cancel
                 </button>
                 <button
@@ -165,14 +204,16 @@ const EmployeeModal = ({ employee, onClose, loading }) => {
   );
 };
 
-const Info = ({ label, value }) => (
-  <div className="border p-2 bg-gray-50 rounded-lg">
-    <p className="text-[11px] font-semibold text-gray-600">{label}</p>
-    <p className="mt-1 text-sm">{value}</p>
-  </div>
-);
-
-const formatLabel = str =>
+const formatLabel = (str) =>
   str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default EmployeeModal;
+
+const Info = ({ label, value }) => {
+  return (
+    <div className="flex items-center gap-1 text-sm border-0">
+      <span className="font-medium  text-[16px]">{label}:</span>
+      <span className="font-normal">{value}</span>
+    </div>
+  );
+};

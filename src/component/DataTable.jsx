@@ -11,7 +11,7 @@ import {
   Typography,
   Button,
 } from "@mui/material";
-import { X, Eye } from "lucide-react";
+import { X, Eye, Info } from "lucide-react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -19,6 +19,36 @@ import dayjs from "dayjs";
 
 import EmployeeModal from "./EmployeModel.jsx";
 import { useEmployeeData } from "../hooks/useEmployeeData.jsx";
+
+const formatMonth = (value) => {
+  if (!value) return "";
+  const [year, month] = value.split("-");
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  return `${months[Number(month) - 1]} - ${year}`;
+};
+const formatShiftDetails = (value) => {
+  if (!value) return "";
+
+  return Object.entries(value)
+    .map(([shift, count]) => {
+      const cleanShift = shift.replace(/\s*\(.*?\)/, "");
+      return `${cleanShift}- ${count}`;
+    })
+    .join(", ");
+};
 
 const DataTable = ({ headers }) => {
   const {
@@ -42,62 +72,56 @@ const DataTable = ({ headers }) => {
   const [errorSearch, setErrorSearch] = useState("");
   const [startMonth, setStartMonth] = useState(null);
   const [endMonth, setEndMonth] = useState(null);
-  const [info,setInfo] = useState(null);
-  const [infoOpen,setInfoOpen] = useState(false)
+  const [info, setInfo] = useState([
+    { "A (9PM to 6AM)": "" },
+    { "B (4PM to 1AM)": "" },
+    { "C (6AM to 3PM)": "" },
+    { "PRIME (12AM to 9AM)": "" },
+  ]);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [infoPosition, setInfoPosition] = useState({ top: 0, left: 0 });
 
   const pattern = /^[A-Za-z]{2}[A-Za-z0-9-_ ]*$/;
-
-
 
   const columns = [
     ...headers.map((header) => {
       if (header === "Shift Details") {
         return {
-          field: header,
-          headerName: header,
+          field: "Shift Details",
+          headerName: "Shift Details",
+          flex: 1,
           sortable: true,
           disableColumnMenu: true,
-          renderCell: (params) => {
-            const shift = params.value || {};
-            const keys = Object.keys(shift).join(", ");
 
-            return (
-              <Box
-                sx={{
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  justifyContent: "center",
-                  width: "100%",
+          renderHeader: () => (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <span>Shift Details</span>
+
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setInfoOpen((prev) => !prev);
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const popupHeight = 100;
+                  const iconHeight = rect.height;
+                  setInfoPosition({
+                    top:
+                      rect.top +
+                      window.scrollY +
+                      iconHeight / 2 -
+                      popupHeight / 2 -
+                      100,
+                    left: rect.left + window.scrollX - 100,
+                  });
                 }}
               >
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontSize: 12,
-                    maxWidth: 80,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    textAlign: "center",
-                  }}
-                >
-                  {keys}
-                </Typography>
+                <Info size={16} />
+              </IconButton>
+            </Box>
+          ),
 
-                <Box
-                  sx={{
-                    cursor: "pointer",
-                    "&:hover": { opacity: 0.7 },
-                  }}
-                >
-                </Box>
-              </Box>
-            );
-          },
+          renderCell: (params) => formatShiftDetails(params.value),
         };
       }
 
@@ -106,22 +130,23 @@ const DataTable = ({ headers }) => {
         headerName: header,
         flex: 1,
         sortable: true,
+        filterable: false,
         disableColumnMenu: true,
+          headerClassName: "custom-header",
       };
     }),
 
     {
       field: "actions",
       headerName: "",
-      filterable: false,
-      hideable: false,
-      disableColumnMenu: true,
-      disableReorder: true,
-      resizable: false,
       width: 1,
       flex: 0,
+      filterable: false,
       sortable: false,
-      renderHeader: () => null,
+      disableColumnMenu: true,
+      disableColumnResize: true,
+      resizable: false,
+
       renderCell: (params) => (
         <Button
           size="small"
@@ -133,38 +158,51 @@ const DataTable = ({ headers }) => {
               params.row["Payroll Month"]
             );
           }}
-          sx={{ minWidth: 0, padding: "4px" }}
+          disableRipple
+          sx={{
+            minWidth: 0,
+            padding: "4px",
+            "&:hover": { backgroundColor: "transparent" },
+            "&:focus": { backgroundColor: "transparent" },
+            "&:active": { backgroundColor: "transparent" },
+            outline: "none",
+            "&:focus-visible": { outline: "none" },
+          }}
         >
-          <Eye color="black" size={16} />
+           <Eye size={18} className="text-black hover:text-blue-600" />
         </Button>
       ),
     },
   ];
 
+  columns.forEach((col) => {
+    if (col.field === "Duration Month" || col.field === "Payroll Month") {
+      col.renderCell = (params) => formatMonth(params.value);
+    }
+  });
+
   useEffect(() => {
     const start = (page - 1) * 10;
-    if (searchQuery.trim().length > 3 && startMonth) return;
 
-    if (searchQuery.trim().length > 3) {
-      debouncedFetch(searchQuery, searchBy, page);
-    } else if (startMonth) {
-      debouncedFetch({ startMonth, endMonth }, "MonthRange", page);
+    let params = {};
+
+    const q = searchQuery.trim();
+    const validSearch = q.length > 3;
+    if (validSearch) {
+      if (searchBy === "Emp ID") params.emp_id = q;
+      if (searchBy === "Account Manager") params.account_manager = q;
+    }
+    if (startMonth) params.start_month = startMonth;
+    if (endMonth) params.end_month = endMonth;
+
+    const hasParams = Object.keys(params).length > 0;
+
+    if (hasParams) {
+      debouncedFetch(params, page);
     } else {
       getProcessedData(start, 10);
     }
-  }, [page]);
-
-  useEffect(() => {
-    if (searchQuery.trim().length > 3 && startMonth) return;
-
-    if (searchQuery.trim().length > 3) {
-      debouncedFetch(searchQuery, searchBy, 1);
-    } else if (startMonth) {
-      debouncedFetch({ startMonth, endMonth }, "MonthRange", 1);
-    } else if (!searchQuery && !startMonth) {
-      getProcessedData(0, 10);
-    }
-  }, [searchQuery, searchBy, startMonth, endMonth]);
+  }, [page, searchQuery, searchBy, startMonth, endMonth]);
 
   const handleDownload = () => {
     if (!searchQuery?.trim() && !startMonth)
@@ -200,200 +238,220 @@ const DataTable = ({ headers }) => {
   };
 
   return (
-    <Box sx={{ width: "100%", display: "flex", flexDirection: "column", position:"relative"}}>
+    <Box
+      sx={{
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+      }}
+    >
       <Box>
-        <Box
-        sx={{
-          display: "flex",
-          mb: 2,
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Box sx={{ display: "flex" }}>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Select
-              size="small"
-              value={searchBy}
-              onChange={(e) => setSearchBy(e.target.value)}
-            >
-              <MenuItem value="Emp ID">Emp ID</MenuItem>
-              <MenuItem value="Account Manager">Account Manager</MenuItem>
-            </Select>
-
-            <Box sx={{ position: "relative", width: 300 }}>
-              <TextField
-                size="small"
-                placeholder={`Search by ${searchBy}...`}
-                value={searchQuery}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSearchQuery(value);
-
-                  if (!value) return setErrorSearch("");
-                  if (!pattern.test(value)) {
-                    setErrorSearch(
-                      "First 2 characters must be letters, then letters, numbers or '-' allowed"
-                    );
-                  } else {
-                    setErrorSearch("");
-                  }
-                }}
-                error={Boolean(errorSearch)}
-                sx={{ width: "100%" }}
-              />
-              {errorSearch && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    color: "red",
-                    fontSize: "11px",
-                    mt: "2px",
-                  }}
-                >
-                  {errorSearch}
-                </Typography>
-              )}
-            </Box>
-          </Box>
-
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              views={["year", "month"]}
-              label="Start Month"
-              value={startMonth ? dayjs(startMonth) : null}
-              onChange={(newValue) =>
-                setStartMonth(newValue ? newValue.format("YYYY-MM") : null)
-              }
-              inputFormat="YYYY-MM"
-              disableFuture
-              slotProps={{
-                textField: {
-                  size: "small",
-                  sx: { width: 140, ml: 2 },
-                  InputProps: {
-                    endAdornment: startMonth && (
-                      <IconButton
-                        size="small"
-                        onClick={() => setStartMonth(null)}
-                      >
-                        <X size={16} />
-                      </IconButton>
-                    ),
-                  },
-                },
-              }}
-            />
-
-            <DatePicker
-              views={["year", "month"]}
-              label="End Month"
-              value={endMonth ? dayjs(endMonth) : null}
-              onChange={(newValue) =>
-                setEndMonth(newValue ? newValue.format("YYYY-MM") : null)
-              }
-              minDate={startMonth ? dayjs(startMonth) : undefined}
-              inputFormat="YYYY-MM"
-              disableFuture
-              slotProps={{
-                textField: {
-                  size: "small",
-                  sx: { width: 140, ml: 2 },
-                  InputProps: {
-                    endAdornment: endMonth && (
-                      <IconButton
-                        size="small"
-                        onClick={() => setEndMonth(null)}
-                      >
-                        <X size={16} />
-                      </IconButton>
-                    ),
-                  },
-                },
-              }}
-            />
-          </LocalizationProvider>
-        </Box>
-        <Tooltip title="Download Allowance Data">
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={handleDownload}
-            disabled={!searchQuery?.trim() && !startMonth}
-            sx={{ textTransform: "none", px: 2, py: 1 }}
-          >
-            Download Data
-          </Button>
-        </Tooltip>
-      </Box>
-
-      <Box sx={{ flex: 1, mt: 2 }}>
-        <DataGrid
-          rows={displayRows}
-          columns={columns}
-          disableRowSelectionOnClick
-          disableColumnReorder
-          pagination={false}
-          hideFooter
-          autoHeight={false}
-          // getRowId={(row) => `${row.emp_id}-${row.payroll_month}-${row.duration_month}`}\
-          components={{
-            NoRowsOverlay: () => (
-              <GridOverlay>
-                <Box
-                  sx={{
-                    height: "100%",
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Typography variant="body2" color="error.main">
-                    {error || "No rows found"}
-                  </Typography>
-                </Box>
-              </GridOverlay>
-            ),
-          }}
-          sx={{
-            flex: 1,
-            border: "none",
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "transparent",
-              fontWeight: 100,
-            },
-            "& .MuiDataGrid-cell": {
-              borderBottom: "none",
-            },
-          }}
-        />
-      </Box>
-
-      {totalPages > 1 && (
         <Box
           sx={{
             display: "flex",
-            justifyContent: "flex-end",
+            mb: 2,
             alignItems: "center",
-            p: 1,
+            justifyContent: "space-between",
           }}
         >
-          <Pagination
-            count={totalPages}
-            page={page}
-            onChange={(e, value) => handlePageChange(value)}
-            color="primary"
-            size="small"
-            siblingCount={1}
-            boundaryCount={1}
-            shape="rounded"
+          <Box sx={{ display: "flex" }}>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <Select
+                size="small"
+                value={searchBy}
+                onChange={(e) => setSearchBy(e.target.value)}
+              >
+                <MenuItem value="Emp ID">Emp ID</MenuItem>
+                <MenuItem value="Account Manager">Account Manager</MenuItem>
+              </Select>
+
+              <Box sx={{ position: "relative", width: 300 }}>
+                <TextField
+                  size="small"
+                  placeholder={`Search by ${searchBy}...`}
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSearchQuery(value);
+
+                    if (!value) return setErrorSearch("");
+                    if (!pattern.test(value)) {
+                      setErrorSearch(
+                        "First 2 characters must be letters, then letters, numbers or '-' allowed"
+                      );
+                    } else {
+                      setErrorSearch("");
+                    }
+                  }}
+                  error={Boolean(errorSearch)}
+                  sx={{ width: "100%" }}
+                />
+                {errorSearch && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      color: "red",
+                      fontSize: "11px",
+                      mt: "2px",
+                    }}
+                  >
+                    {errorSearch}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                views={["year", "month"]}
+                label="Start Month"
+                value={startMonth ? dayjs(startMonth) : null}
+                onChange={(newValue) =>
+                  setStartMonth(newValue ? newValue.format("YYYY-MM") : null)
+                }
+                inputFormat="YYYY-MM"
+                disableFuture
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    sx: { width: 140, ml: 2 },
+                    InputProps: {
+                      endAdornment: startMonth && (
+                        <IconButton
+                          size="small"
+                          onClick={() => setStartMonth(null)}
+                        >
+                          <X size={16} />
+                        </IconButton>
+                      ),
+                    },
+                  },
+                }}
+              />
+
+              <DatePicker
+                views={["year", "month"]}
+                label="End Month"
+                value={endMonth ? dayjs(endMonth) : null}
+                onChange={(newValue) =>
+                  setEndMonth(newValue ? newValue.format("YYYY-MM") : null)
+                }
+                minDate={startMonth ? dayjs(startMonth) : undefined}
+                inputFormat="YYYY-MM"
+                disableFuture
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    sx: { width: 140, ml: 2 },
+                    InputProps: {
+                      endAdornment: endMonth && (
+                        <IconButton
+                          size="small"
+                          onClick={() => setEndMonth(null)}
+                        >
+                          <X size={16} />
+                        </IconButton>
+                      ),
+                    },
+                  },
+                }}
+              />
+            </LocalizationProvider>
+          </Box>
+          <Tooltip title="Download Allowance Data">
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleDownload}
+              disabled={!searchQuery?.trim() && !startMonth}
+              sx={{ textTransform: "none", px: 2, py: 1 }}
+            >
+              Download Data
+            </Button>
+          </Tooltip>
+        </Box>
+
+        <Box sx={{ flex: 1, mt: 2 }}>
+          <DataGrid
+           sx={{
+              flex: 1,
+              border: "none",
+              "& .custom-header .MuiDataGrid-columnHeaderTitle":{
+                fontWeight: "bold",
+              },
+              "& .MuiDataGrid-columnHeaders": {
+                fontWeight: "bold",
+              },
+              "& .MuiDataGrid-cell": {
+                borderBottom: "none",
+               
+              },
+              "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+                outline: "none !important",
+              },
+              "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within":
+                {
+                  outline: "none !important",
+                  
+                },
+            }}
+            rows={displayRows}
+            columns={columns}
+            disableRowSelectionOnClick
+            disableColumnReorder
+            disableColumnSorting
+            pagination={false}
+            hideFooter
+            autoHeight={false}
+            // getRowId={(row) => `${row.emp_id}-${row.payroll_month}-${row.duration_month}`}\
+            components={{
+              NoRowsOverlay: () => (
+                <GridOverlay>
+                  <Box
+                    sx={{
+                      height: "100%",
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Typography variant="body2" color="error.main">
+                      {error || "No rows found"}
+                    </Typography>
+                  </Box>
+                </GridOverlay>
+              ),
+            }}
+           
           />
         </Box>
-      )}
+
+        {totalPages > 1 && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              p: 1,
+            }}
+          >
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(e, value) => handlePageChange(value)}
+              color="primary"
+              size="small"
+              siblingCount={1}
+              boundaryCount={1}
+              shape="rounded"
+            />
+          </Box>
+        )}
       </Box>
 
       {modelOpen && selectedEmployee && (
@@ -405,54 +463,51 @@ const DataTable = ({ headers }) => {
       )}
 
       {infoOpen && (
-  <Box
-    onClick={() => setInfoOpen(false)}
-    sx={{
-      position: "fixed",
-      inset: 0,
-      zIndex: 99,
-    }}
-  />
-)}
-
-{infoOpen && (
-  <Box
-    sx={{
-      position: "absolute",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-      background: "white",
-      boxShadow: 3,
-      borderRadius: 1,
-      p: 2,
-      minWidth: 220,
-      zIndex: 100,
-    }}
-    onClick={(e)=>e.stopPropagation()}
-  >
-    {info.map((details, i) => {
-      const key = Object.keys(details)[0];
-      const value = Object.values(details)[0];
-      return (
         <Box
-          key={i}
+          onClick={() => setInfoOpen(false)}
           sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 1,
-            mb: 0.5,
+            position: "fixed",
+            inset: 0,
+            zIndex: 99,
           }}
+        />
+      )}
+
+      {infoOpen && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: `${infoPosition.top}px`,
+            left: `${infoPosition.left}px`,
+            background: "white",
+            boxShadow: 3,
+            borderRadius: 1,
+            p: 2,
+            minWidth: 220,
+            zIndex: 100,
+          }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <Typography sx={{ fontWeight: 600 }}>{key}</Typography>
-          <Typography>{value}</Typography>
+          {info.map((details, i) => {
+            const key = Object.keys(details)[0];
+            const value = Object.values(details)[0];
+            return (
+              <Box
+                key={i}
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  mb: 0.5,
+                }}
+              >
+                <Typography sx={{ fontWeight: 600 }}>{key}</Typography>
+                <Typography>{value}</Typography>
+              </Box>
+            );
+          })}
         </Box>
-      );
-    })}
-  </Box>
-)}
-
-
+      )}
     </Box>
   );
 };
