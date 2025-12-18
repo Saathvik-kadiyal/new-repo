@@ -37,6 +37,7 @@ const FileInput = () => {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
+    console.log(file)
     if (!file) return;
     setFileName(file.name);
     const token = localStorage.getItem("access_token");
@@ -55,16 +56,28 @@ const FileInput = () => {
   const safeErrorRows = errorRows || [];
 
   return (
-    <Box sx={{ width: "100%", pt: 2, pb: 4 }}>
+    <Box sx={{ width: "100%", pt: 2, pb: 4 }}  >
       <Typography variant="h5" fontWeight={600} mb={2}>
         Shift Allowance Data
       </Typography>
 
-      <Stack direction="row" spacing={2} mb={3}>
-        <Button variant="contained" component="label">
-          Upload Excel
-          <input type="file" hidden onChange={handleFileChange} />
-        </Button>
+      <Stack direction="row" spacing={2} mb={3} alignItems="center">
+       <Button variant="contained" component="label">
+  Upload Excel
+  <input
+    type="file"
+    hidden
+    onClick={(e) => {
+      e.target.value = null;
+    }}
+    onChange={(e) => {
+      console.log("hi");
+      handleFileChange(e);
+    }}
+  />
+</Button>
+
+        <Box sx={{ flexGrow: 1 }} />
         <Button variant="outlined" onClick={downloadExcel}>
           Download Template
         </Button>
@@ -77,7 +90,8 @@ const FileInput = () => {
       {/* 🔹 Error Modal */}
       <Modal
         open={errorModalOpen}
-        onClose={() => {
+        onClose={(e) => {
+          e.stopPrpagation()
           setErrorModalOpen(false);
           setErrorFileLink && setErrorFileLink(null);
         }}
@@ -109,10 +123,6 @@ const FileInput = () => {
           </Typography>
 
           <Stack direction="column" spacing={2} mb={2}>
-            {safeErrorRows.length === 0 && (
-              <Typography>No error rows available</Typography>
-            )}
-
             {safeErrorRows.length > 0 && (
               <Stack direction="row" spacing={2}>
                 <Button

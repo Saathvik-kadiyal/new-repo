@@ -18,7 +18,9 @@ import {
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+
+
 import CloseIcon from "@mui/icons-material/Close";
 import * as XLSX from "xlsx";
 import { correctEmployeeRows, toBackendMonthFormat } from "../utils/helper";
@@ -51,70 +53,53 @@ const EmployeeEditPage = () => {
       console.log("Selected employee reason fields:", selectedEmployee.reason);
     }
   }, [selectedEmployee]);
-const handleSave = async () => {
-  if (!selectedEmployee) return;
+  const handleSave = async () => {
+    if (!selectedEmployee) return;
 
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    setSaveSuccess("You are not authenticated. Please login again.");
-    return;
-  }
-
-  try {
-    const correctedRow = { ...selectedEmployee };
-
-    // --- Step 1: Convert months to backend format ---
-    console.log("Before conversion:", {
-      duration_month: correctedRow.duration_month,
-      payroll_month: correctedRow.payroll_month,
-    });
-
-    correctedRow.duration_month = toBackendMonthFormat(correctedRow.duration_month);
-    correctedRow.payroll_month = toBackendMonthFormat(correctedRow.payroll_month);
-
-    console.log("After conversion:", {
-      duration_month: correctedRow.duration_month,
-      payroll_month: correctedRow.payroll_month,
-    });
-
-    // --- Step 2: REMOVE reason (very important) ---
-    delete correctedRow.reason;
-
-    console.log("Corrected Row being sent to API:", correctedRow);
-
-    const data = await correctEmployeeRows(token, [correctedRow]);
-
-    console.log("API Response:", data);
-
-    // --- Step 3: Correct success condition ---
-    if (data?.message) {
-      setSaveSuccess(`EMP ID: ${correctedRow.emp_id} saved successfully ✅`);
-
-      const updatedErrors = errorRows.filter(
-        (r) => r.emp_id !== correctedRow.emp_id
-      );
-
-      setErrorRows(updatedErrors);
-      setSelectedEmployee(null);
-
-      return; // ⛔ STOP HERE (important)
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      setSaveSuccess("You are not authenticated. Please login again.");
+      return;
     }
 
-  } catch (err) {
-    console.error("Save error caught:", err);
+    try {
+      const correctedRow = { ...selectedEmployee };
 
-    const errorMsg =
-      err?.detail?.failed_rows?.[0]?.reason ||
-      err?.message ||
-      "Unknown";
+      console.log("Corrected Row being sent to API:", correctedRow);
 
-    setSaveSuccess(
-      `Failed to save EMP ID: ${selectedEmployee.emp_id} - ${errorMsg}`
-    );
-  }
+      const data = await correctEmployeeRows(token, [correctedRow]);
 
-  setTimeout(() => setSaveSuccess(""), 4000);
-};
+      console.log("API Response:", data);
+
+
+      if (data?.message) {
+        setSaveSuccess(`EMP ID: ${correctedRow.emp_id} saved successfully ✅`);
+
+        const updatedErrors = errorRows.filter(
+          (r) => r.emp_id !== correctedRow.emp_id
+        );
+
+        setErrorRows(updatedErrors);
+        setSelectedEmployee(null);
+
+        return;
+      }
+
+    } catch (err) {
+      console.error("Save error caught:", err);
+
+      const errorMsg =
+        err?.detail?.failed_rows?.[0]?.reason ||
+        err?.message ||
+        "Unknown";
+
+      setSaveSuccess(
+        `Failed to save EMP ID: ${selectedEmployee.emp_id} - ${errorMsg}`
+      );
+    }
+
+    setTimeout(() => setSaveSuccess(""), 5000);
+  };
 
 
   const handleDownloadErrorRows = () => {
@@ -200,7 +185,6 @@ const handleSave = async () => {
               <TableCell sx={{ fontWeight: "bold" }}>Action</TableCell>
             </TableRow>
           </TableHead>
-
           <TableBody>
             {errorRows.length === 0 ? (
               <TableRow>
@@ -218,19 +202,34 @@ const handleSave = async () => {
                     {Object.keys(row)
                       .filter((key) => !isHiddenField(key))
                       .map((key) => (
-                        <TableCell key={key} sx={{ border: "1px solid #ddd" }}>
+                        <TableCell
+                          key={key}
+                          sx={{
+                            border: "1px solid #ddd",
+                            color: row.reason && row.reason[key] ? "red" : "inherit", 
+                            fontWeight: row.reason && row.reason[key] ? "bold" : "normal",
+                          }}
+                        >
                           {row[key] ?? "-"}
                         </TableCell>
                       ))}
                     <TableCell>
-                      <IconButton onClick={() => setSelectedEmployee(row)}>
-                        <VisibilityOutlinedIcon />
+
+                      <IconButton
+                        onClick={() => {
+                          setSelectedEmployee(row); 
+                          setSaveSuccess("");        
+                        }}
+                      >
+                        <PushPinOutlinedIcon />
                       </IconButton>
+
                     </TableCell>
                   </TableRow>
                 ))
             )}
           </TableBody>
+
         </Table>
       </TableContainer>
 
@@ -268,9 +267,15 @@ const handleSave = async () => {
             <Typography variant="h6" fontWeight="bold">
               Employee Details – EMP ID: {selectedEmployee?.emp_id}
             </Typography>
-            <IconButton onClick={() => setSelectedEmployee(null)}>
+            <IconButton
+              onClick={() => {
+                setSelectedEmployee(null);
+                setSaveSuccess("");
+              }}
+            >
               <CloseIcon />
             </IconButton>
+
           </Box>
 
           <Typography fontWeight="bold" mb={1}>
@@ -303,11 +308,12 @@ const handleSave = async () => {
                     fullWidth
                     size="small"
                     value={selectedEmployee[field] ?? ""}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setSelectedEmployee((prev) => ({
                         ...prev,
                         [field]: e.target.value,
                       }))
+                    }
                     }
                     error={Boolean(selectedEmployee.reason[field])}
                     helperText={selectedEmployee.reason[field]}
@@ -337,7 +343,8 @@ const handleSave = async () => {
       </Modal>
     </Box>
   );
-};
+}
 
 export default EmployeeEditPage;
+
 

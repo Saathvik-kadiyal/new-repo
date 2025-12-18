@@ -1,7 +1,6 @@
 import axios from "axios";
-
+import dayjs from "dayjs";
 const backendApi = import.meta.env.VITE_BACKEND_API;
-
 
 export const debounce = (fn, delay) => {
   let timer; 
@@ -10,7 +9,6 @@ export const debounce = (fn, delay) => {
     timer = setTimeout(() => fn(...args), delay);
   };
 };
-
 
 export const fetchEmployees = async ({
   token,
@@ -25,10 +23,10 @@ export const fetchEmployees = async ({
   let requestParams = {};
 
   if (!hasParams) {
-    url = `${backendApi}/display/`;
+    url = `${backendApi}/employee-details/search`;
     requestParams = { start, limit };
   } else {
-    url = `${backendApi}/employee-details/Search`;
+    url = `${backendApi}/employee-details/search`;
     requestParams = { ...params,start,limit};
   }
 
@@ -62,10 +60,13 @@ export const fetchEmployeeDetail = async (token,emp_id,duration_month,payroll_mo
     headers: { Authorization: `Bearer ${token}` },
       params: payload, 
   });
+  console.log("backedn",response)
   return response.data;
+
 };
 
 export const uploadFile = async (token, file) => {
+  
   if (!token) throw new Error("Not authenticated");
 
   const formData = new FormData();
@@ -81,11 +82,9 @@ export const uploadFile = async (token, file) => {
 
     return response.data;
   } catch (err) {
-    // Backend sent response
+   
     if (err.response) {
       const { status, data } = err.response;
-
-      // Create a proper Error object so UI can catch it correctly
       const error = new Error(
         typeof data?.detail === "string"
           ? data.detail
@@ -97,15 +96,67 @@ export const uploadFile = async (token, file) => {
       throw error;
     }
 
-    // No response from backend
+   
     if (err.request) {
       throw new Error("No response from server. Please try again later.");
     }
 
-    // Any other client-side error
+   
     throw new Error(err.message || "File upload failed");
   }
 }; 
+
+
+
+
+// export const uploadFile = async (token, file) => {
+//   if (!token) throw new Error("Not authenticated");
+
+//   // Read Excel file
+//   const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+//   const sheetName = workbook.SheetNames[0];
+//   const sheet = workbook.Sheets[sheetName];
+//   let data = XLSX.utils.sheet_to_json(sheet);
+
+//   // Convert month fields
+//   data = data.map(row => ({
+//     ...row,
+//     duration_month: toBackendMonthFormat(row.duration_month),
+//     payroll_month: toBackendMonthFormat(row.payroll_month),
+//   }));
+
+//   // Convert JSON back to Excel
+//   const newSheet = XLSX.utils.json_to_sheet(data);
+//   const newWorkbook = XLSX.utils.book_new();
+//   XLSX.utils.book_append_sheet(newWorkbook, newSheet, sheetName);
+//   const blob = await XLSX.write(newWorkbook, { type: "blob", bookType: "xlsx" });
+
+//   // Send processed file to backend
+//   const formData = new FormData();
+//   formData.append("file", blob, file.name);
+
+//   try {
+//     const response = await axios.post(`${backendApi}/upload`, formData, {
+//       headers: {
+//         "Content-Type": "multipart/form-data",
+//         Authorization: `Bearer ${token}`,
+//       },
+//     });
+//     return response.data;
+//   } catch (err) {
+//     if (err.response) {
+//       const { status, data } = err.response;
+//       const error = new Error(
+//         typeof data?.detail === "string" ? data.detail : data?.message || "File upload failed"
+//       );
+//       error.status = status;
+//       error.detail = data?.detail;
+//       throw error;
+//     }
+//     if (err.request) throw new Error("No response from server. Please try again later.");
+//     throw new Error(err.message || "File upload failed");
+//   }
+// };
 
 export const fetchFilteredEmployees = async ({
   token,
@@ -131,8 +182,6 @@ export const fetchFilteredEmployees = async ({
   );
 
   const data = response.data;
-
-  // Normalize backend response
   if (Array.isArray(data?.data?.data)) {
     return { ...data, data: data.data.data };
   }
@@ -181,8 +230,6 @@ export const updateEmployeeShift = async (
     }
   }
 };
-
-// Convert frontend month "Apr'25" to backend "2025-04"
 export const toBackendMonthFormat = (monthStr) => {
   if (!monthStr) return "";
 
@@ -205,11 +252,11 @@ export const toBackendMonthFormat = (monthStr) => {
   if (!match) return monthStr;
 
   const [, mon, year] = match;
-  const yyyy = "20" + year; // e.g., '25' -> '2025'
+  const yyyy = "20" + year; 
   return `${yyyy}-${months[mon]}`;
 };
 
-// Convert backend month "2025-04" to frontend "Apr'25"
+
 export const toFrontendMonthFormat = (monthStr) => {
   if (!monthStr) return "";
 
@@ -251,61 +298,88 @@ export const toFrontendMonthFormat = (monthStr) => {
 //   }
 // };
 
+// export const correctEmployeeRows = async (token, correctedRows) => {
+//   if (!token) throw new Error("Not authenticated");
+
+//   const sanitizedRows = correctedRows.map(({ reason, ...row }) => ({
+//   ...row,
+
+
+//   shift_a_days: Number(row.shift_a_days) || 0,
+//   shift_b_days: Number(row.shift_b_days) || 0,
+//   shift_c_days: Number(row.shift_c_days) || 0,
+//   prime_days: Number(row.prime_days) || 0,
+
+//   "# Shift Types(e)": Number(row["# Shift Types(e)"]) || 0,
+//   total_days: Number(row.total_days) || 0,
+
+//   "Timesheet Billable Days": Number(row["Timesheet Billable Days"]) || 0,
+//   "Timesheet Non Billable Days": Number(row["Timesheet Non Billable Days"]) || 0,
+
+//   Diff: Number(row.Diff) || 0,
+//   "Final Total Days": Number(row["Final Total Days"]) || 0,
+
+//   "Shift A Allowances": Number(row["Shift A Allowances"]) || 0,
+//   "Shift B Allowances": Number(row["Shift B Allowances"]) || 0,
+//   "Shift C Allowances": Number(row["Shift C Allowances"]) || 0,
+//   "Prime Allowances": Number(row["Prime Allowances"]) || 0,
+//   "TOTAL DAYS Allowances": Number(row["TOTAL DAYS Allowances"]) || 0,
+
+//   "AM Approval Status(e)": Number(row["AM Approval Status(e)"]) || 0,
+
+//   rmg_comments:
+//     row.rmg_comments === 0 || row.rmg_comments === null
+//       ? ""
+//       : String(row.rmg_comments),
+
+//   practice_remarks:
+//     row.practice_remarks === 0 || row.practice_remarks === null
+//       ? ""
+//       : String(row.practice_remarks),
+
+//   delivery_manager:
+//     row.delivery_manager === 0 || row.delivery_manager === null
+//       ? ""
+//       : String(row.delivery_manager),
+// }));
+
+
+//   try {
+//     const response = await axios.post(
+//       `${backendApi}/upload/correct_error_rows`,
+//       { corrected_rows: sanitizedRows },
+//       {
+//         headers: {
+//           "Content-Type": "application/json",
+//           Authorization: `Bearer ${token}`,
+//         },
+//       }
+//     );
+
+//     return response.data;
+//   } catch (err) {
+//     if (err.response) {
+//       console.error("Backend error:", err.response.data);
+//       throw new Error(JSON.stringify(err.response.data));
+//     }
+//     throw err;
+//   }
+// };
+
+
 export const correctEmployeeRows = async (token, correctedRows) => {
   if (!token) throw new Error("Not authenticated");
 
-  const sanitizedRows = correctedRows.map(({ reason, ...row }) => ({
-  ...row,
-
-  // 🔢 Numbers
-  shift_a_days: Number(row.shift_a_days) || 0,
-  shift_b_days: Number(row.shift_b_days) || 0,
-  shift_c_days: Number(row.shift_c_days) || 0,
-  prime_days: Number(row.prime_days) || 0,
-
-  "# Shift Types(e)": Number(row["# Shift Types(e)"]) || 0,
-  total_days: Number(row.total_days) || 0,
-
-  "Timesheet Billable Days": Number(row["Timesheet Billable Days"]) || 0,
-  "Timesheet Non Billable Days": Number(row["Timesheet Non Billable Days"]) || 0,
-
-  Diff: Number(row.Diff) || 0,
-  "Final Total Days": Number(row["Final Total Days"]) || 0,
-
-  "Shift A Allowances": Number(row["Shift A Allowances"]) || 0,
-  "Shift B Allowances": Number(row["Shift B Allowances"]) || 0,
-  "Shift C Allowances": Number(row["Shift C Allowances"]) || 0,
-  "Prime Allowances": Number(row["Prime Allowances"]) || 0,
-  "TOTAL DAYS Allowances": Number(row["TOTAL DAYS Allowances"]) || 0,
-
-  "AM Approval Status(e)": Number(row["AM Approval Status(e)"]) || 0,
-
-  // 🧵 Strings (🔥 THIS FIXES YOUR ISSUE)
-  rmg_comments:
-    row.rmg_comments === 0 || row.rmg_comments === null
-      ? ""
-      : String(row.rmg_comments),
-
-  practice_remarks:
-    row.practice_remarks === 0 || row.practice_remarks === null
-      ? ""
-      : String(row.practice_remarks),
-
-  delivery_manager:
-    row.delivery_manager === 0 || row.delivery_manager === null
-      ? ""
-      : String(row.delivery_manager),
-}));
-
+  const payload = correctedRows.map(({ reason, ...row }) => row);
 
   try {
     const response = await axios.post(
       `${backendApi}/upload/correct_error_rows`,
-      { corrected_rows: sanitizedRows },
+      { corrected_rows: payload },
       {
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       }
     );
@@ -314,7 +388,7 @@ export const correctEmployeeRows = async (token, correctedRows) => {
   } catch (err) {
     if (err.response) {
       console.error("Backend error:", err.response.data);
-      throw new Error(JSON.stringify(err.response.data));
+      throw err.response.data;
     }
     throw err;
   }
@@ -343,8 +417,6 @@ if (topFilter != null && topFilter !== "") params["top"] = topFilter;
  
 };
  
-
-
 export const fetchHorizontalBar = async (token, startMonth, endMonth, topFilter) => {
   if (!token) throw new Error("Not authenticated");
  
@@ -373,7 +445,6 @@ export const fetchHorizontalBar = async (token, startMonth, endMonth, topFilter)
   }
 };
  
-
 export const fetchClientSummary = async (
   token,
   client = "ALL",
@@ -544,9 +615,9 @@ export const fetchClientComparison = async (
   }
 };
 
-
 export const fetchClients = async () => {
   const token = localStorage.getItem("access_token");
+  // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.get("http://localhost:8000/dashboard/clients",
       {
