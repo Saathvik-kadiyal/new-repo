@@ -24,6 +24,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import {
   debounce,
+  downloadClientSummary,
   fetchClientDepartments,
   fetchClientSummary,
 } from "../utils/helper";
@@ -36,9 +37,9 @@ const ClientSummaryDetailedPage = () => {
   const [expandedClient, setExpandedClient] = useState(null);
   const [startMonth, setStartMonth] = useState(null);
   const [endMonth, setEndMonth] = useState(null);
-  const [search, setSearch] = useState("");
-  const [amSearch, setAmSearch] = useState("");
-  const [selectedAM, setSelectedAM] = useState("");
+  // const [search, setSearch] = useState("");
+  // const [amSearch, setAmSearch] = useState("");
+  // const [selectedAM, setSelectedAM] = useState("");
   const [timelineSelection, setTimelineSelection] = useState("range");
   const [year, setYear] = useState(null);
   const [multipleMonths, setMultipleMonths] = useState([]);
@@ -46,7 +47,6 @@ const ClientSummaryDetailedPage = () => {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [openMap, setOpenMap] = useState({});
   const [expandedMonth, setExpandedMonth] = useState([]);
 
   const token = localStorage.getItem("access_token");
@@ -78,7 +78,6 @@ const ClientSummaryDetailedPage = () => {
     { label: "Q3 (Jul - Sep)", value: "Q3" },
     { label: "Q4 (Oct - Dec)", value: "Q4" },
   ];
-
 
   const runFetch = useCallback(
     debounce(async (token, payload) => {
@@ -113,37 +112,36 @@ const ClientSummaryDetailedPage = () => {
     loadClientDepartments();
   }, []);
 
-const toggleDepartment = (client, dept) => {
-  setSelectedClients((prev) => {
-    const current = prev[client] || [];
-    if (dept === "ALL") {
-      const allDepartments = clientDepartments.find((c) => c.client === client)?.departments || [];
+  const toggleDepartment = (client, dept) => {
+    setSelectedClients((prev) => {
+      const current = prev[client] || [];
+      if (dept === "ALL") {
+        const allDepartments =
+          clientDepartments.find((c) => c.client === client)?.departments || [];
 
-      if (current.length === allDepartments.length) {
-        const updatedState = { ...prev };
-        delete updatedState[client];
-        return updatedState;
+        if (current.length === allDepartments.length) {
+          const updatedState = { ...prev };
+          delete updatedState[client];
+          return updatedState;
+        } else {
+          return { ...prev, [client]: [...allDepartments] };
+        }
       } else {
-        return { ...prev, [client]: [...allDepartments] };
+        const newDepartments = current.includes(dept)
+          ? current.filter((d) => d !== dept)
+          : [...current, dept];
+
+        if (newDepartments.length === 0) {
+          const updatedState = { ...prev };
+          delete updatedState[client];
+          return updatedState;
+        }
+
+        return { ...prev, [client]: newDepartments };
       }
-    } else {
-      const newDepartments = current.includes(dept)
-        ? current.filter((d) => d !== dept)
-        : [...current, dept];
+    });
+  };
 
-      if (newDepartments.length === 0) {
-        const updatedState = { ...prev };
-        delete updatedState[client];
-        return updatedState;
-      }
-
-      return { ...prev, [client]: newDepartments };
-    }
-  });
-};
-
-
-console.log(data)  
   useEffect(() => {
     let payload = {
       clients: "ALL",
@@ -151,33 +149,33 @@ console.log(data)
     runFetch(token, payload);
   }, []);
 
-  const accountManagerList = useMemo(() => {
-    const setAM = new Set();
-    Object.values(data).forEach((monthObj) => {
-      if (!monthObj) return;
-      if (monthObj.clients && typeof monthObj.clients === "object") {
-        Object.values(monthObj.clients).forEach((clientObj) => {
-          const deps = clientObj.departments || {};
-          Object.values(deps).forEach((dept) => {
-            (dept.employees || []).forEach((e) => {
-              if (e.account_manager) setAM.add(e.account_manager);
-            });
-          });
-        });
-      }
-    });
-    return Array.from(setAM).sort();
-  }, [data]);
+  // const accountManagerList = useMemo(() => {
+  //   const setAM = new Set();
+  //   Object.values(data).forEach((monthObj) => {
+  //     if (!monthObj) return;
+  //     if (monthObj.clients && typeof monthObj.clients === "object") {
+  //       Object.values(monthObj.clients).forEach((clientObj) => {
+  //         const deps = clientObj.departments || {};
+  //         Object.values(deps).forEach((dept) => {
+  //           (dept.employees || []).forEach((e) => {
+  //             if (e.account_manager) setAM.add(e.account_manager);
+  //           });
+  //         });
+  //       });
+  //     }
+  //   });
+  //   return Array.from(setAM).sort();
+  // }, [data]);
 
-  const filteredAMs = useMemo(() => {
-    return accountManagerList.filter((am) =>
-      am.toLowerCase().includes(amSearch.toLowerCase())
-    );
-  }, [amSearch, accountManagerList]);
+  // const filteredAMs = useMemo(() => {
+  //   return accountManagerList.filter((am) =>
+  //     am.toLowerCase().includes(amSearch.toLowerCase())
+  //   );
+  // }, [amSearch, accountManagerList]);
 
-  const matchesSearch = (txt) =>
-    !search ||
-    ("" + (txt ?? "")).toLowerCase().includes(search.trim().toLowerCase());
+  // const matchesSearch = (txt) =>
+  //   !search ||
+  //   ("" + (txt ?? "")).toLowerCase().includes(search.trim().toLowerCase());
 
   const monthKeys = useMemo(() => {
     return Object.keys(data)
@@ -187,12 +185,12 @@ console.log(data)
 
   let prevTotal = null;
 
-  const handleClientSummaryWithDepartments = () => {
+  const buildClientSummaryPayload = () => {
     const payload = {
       clients:
         Object.keys(selectedClients).length > 0 ? selectedClients : "ALL",
     };
-    console.log(payload);
+
     if (timelineSelection === "range") {
       if (startMonth) {
         payload.start_month = dayjs(startMonth).format("YYYY-MM");
@@ -210,6 +208,7 @@ console.log(data)
         payload.selected_months = multipleMonths;
       }
     }
+
     if (timelineSelection === "quarterly") {
       if (year) {
         payload.selected_year = dayjs(year).format("YYYY");
@@ -218,26 +217,52 @@ console.log(data)
         payload.selected_quarters = quarterlySelection;
       }
     }
+    return payload;
+  };
 
-    if (selectedAM) {
-      payload.account_manager = selectedAM;
-    }
+  const handleClientSummaryWithDepartments = () => {
+    const payload = buildClientSummaryPayload();
 
-    runFetch(token, payload);
+    runFetch(payload);
     setClientDialogOpen(false);
+  };
+
+  const handleDownload = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const payload = buildClientSummaryPayload();
+      const blob = await downloadClientSummary(payload);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "client_summary.xlsx";
+      document.body.appendChild(link);
+      link.click();
+
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message || "Download failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatMonthKey = (monthKey) => {
     if (!monthKey) return "";
     if (monthKey.includes(" - ")) {
       const [start, end] = monthKey.split(" - ");
-let first = start.split("-")[1];
-let last = end.split("-")[1];
+      let first = start.split("-")[1];
+      let last = end.split("-")[1];
       let quarter = "";
-      if(first==="01" && last==="03") quarter="Q1";
-      else if(first==="04" && last==="06") quarter="Q2";
-      else if(first==="07" && last==="09") quarter="Q3";
-      else if(first==="10" && last==="12") quarter="Q4";
+      if (first === "01" && last === "03") quarter = "Q1";
+      else if (first === "04" && last === "06") quarter = "Q2";
+      else if (first === "07" && last === "09") quarter = "Q3";
+      else if (first === "10" && last === "12") quarter = "Q4";
 
       return `${quarter} ${dayjs(`${start}-01`).format("MMM YYYY")}   ${dayjs(
         `${end}-01`
@@ -245,7 +270,6 @@ let last = end.split("-")[1];
     }
     return dayjs(`${monthKey}-01`).format("MMM YYYY");
   };
-  
 
   return (
     <Box
@@ -495,82 +519,87 @@ let last = end.split("-")[1];
 
         {timelineSelection === "monthly" && (
           <LocalizationProvider dateAdapter={AdapterDayjs}>
-  <DatePicker
-    views={["year"]}
-    label="Select Year"
-    value={year}
-    onChange={(v) => {
-      setYear(v);
-      if (v) {
-        setMultipleMonths(monthsList.map((m) => m.value));
-      } else {
-        setMultipleMonths([]);
-      }
-    }}
-    disableFuture
-    slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
-  />
+            <DatePicker
+              views={["year"]}
+              label="Select Year"
+              value={year}
+              onChange={(v) => {
+                setYear(v);
+                if (v) {
+                  setMultipleMonths(monthsList.map((m) => m.value));
+                } else {
+                  setMultipleMonths([]);
+                }
+              }}
+              disableFuture
+              slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
+            />
 
-  <Box sx={{ position: "relative", width: 160, display: "inline-block" }}>
-    <FormControl sx={{ width: "100%" }} size="small">
-      <InputLabel>Select Months</InputLabel>
-      <Select
-        multiple
-        value={multipleMonths}
-        onChange={(e) => {
-          const value = e.target.value;
-          const uniqueValues = Array.from(new Set(value));
-          setMultipleMonths(uniqueValues);
-        }}
-        input={<OutlinedInput label="Select Months" />}
-        disabled={!year}
-        renderValue={(selected) =>
-          selected.length === 12
-            ? "All Months"
-            : selected
-                .map((m) => monthsList.find((x) => x.value === m)?.label)
-                .join(", ")
-        }
-      >
-        <MenuItem
-          value="ALL"
-          onClick={() => {
-            if (multipleMonths.length === 12) {
-              setMultipleMonths([]);
-            } else {
-              setMultipleMonths(monthsList.map((m) => m.value));
-            }
-          }}
-        >
-          <Checkbox checked={multipleMonths.length === 12} />
-          <ListItemText primary="All Months" />
-        </MenuItem>
+            <Box
+              sx={{ position: "relative", width: 160, display: "inline-block" }}
+            >
+              <FormControl sx={{ width: "100%" }} size="small">
+                <InputLabel>Select Months</InputLabel>
+                <Select
+                  multiple
+                  value={multipleMonths}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const uniqueValues = Array.from(new Set(value));
+                    setMultipleMonths(uniqueValues);
+                  }}
+                  input={<OutlinedInput label="Select Months" />}
+                  disabled={!year}
+                  renderValue={(selected) =>
+                    selected.length === 12
+                      ? "All Months"
+                      : selected
+                          .map(
+                            (m) => monthsList.find((x) => x.value === m)?.label
+                          )
+                          .join(", ")
+                  }
+                >
+                  <MenuItem
+                    value="ALL"
+                    onClick={() => {
+                      if (multipleMonths.length === 12) {
+                        setMultipleMonths([]);
+                      } else {
+                        setMultipleMonths(monthsList.map((m) => m.value));
+                      }
+                    }}
+                  >
+                    <Checkbox checked={multipleMonths.length === 12} />
+                    <ListItemText primary="All Months" />
+                  </MenuItem>
 
-        {monthsList.map((month) => (
-          <MenuItem key={month.value} value={month.value}>
-            <Checkbox checked={multipleMonths.includes(month.value)} />
-            <ListItemText primary={month.label} />
-          </MenuItem>
-        ))}
-      </Select>
+                  {monthsList.map((month) => (
+                    <MenuItem key={month.value} value={month.value}>
+                      <Checkbox
+                        checked={multipleMonths.includes(month.value)}
+                      />
+                      <ListItemText primary={month.label} />
+                    </MenuItem>
+                  ))}
+                </Select>
 
-      {!year && (
-        <FormHelperText
-          sx={{
-            position: "absolute",
-            bottom: -20,
-            left: 0,
-            fontSize: "0.75rem",
-            color: "error.main",
-          }}
-        >
-          Please select year
-        </FormHelperText>
-      )}
-    </FormControl>
-  </Box>
-</LocalizationProvider>
-
+                {!year && (
+                  <FormHelperText
+                    sx={{
+                      position: "absolute",
+                      bottom: -20,
+                      left: 0,
+                      fontSize: "0.75rem",
+                      color: "error.main",
+                    }}
+                  >
+                    Please select year
+                  </FormHelperText>
+                )}
+              </FormControl>
+            </Box>
+          </LocalizationProvider>
         )}
 
         {timelineSelection === "quarterly" && (
@@ -594,54 +623,57 @@ let last = end.split("-")[1];
               disableFuture
               slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
             />
-             <Box sx={{ position: "relative", width: 160, display: "inline-block" }}>
-            <FormControl sx={{ width: 160}} size="small">
-              <InputLabel>Select Quarter</InputLabel>
+            <Box
+              sx={{ position: "relative", width: 160, display: "inline-block" }}
+            >
+              <FormControl sx={{ width: 160 }} size="small">
+                <InputLabel>Select Quarter</InputLabel>
 
-              <Select
-                multiple
-                value={quarterlySelection}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  const filtered = value.filter(Boolean);
-                  setQuarterlySelection([...new Set(filtered)]);
-                }}
-                input={<OutlinedInput label="Select Quarter" />}
-                disabled={!year}
-                renderValue={(selected) => {
-                  const filtered = selected.filter(Boolean);
-                  return filtered.length === 0
-                    ? ""
-                    : filtered
-                        .map(
-                          (q) => quarterlyList.find((x) => x.value === q)?.label
-                        )
-                        .join(", ");
-                }}
-              >
-                {quarterlyList.map((qtr) => (
-                  <MenuItem key={qtr.value} value={qtr.value}>
-                    <Checkbox
-                      checked={quarterlySelection.includes(qtr.value)}
-                    />
-                    <ListItemText primary={qtr.label} />
-                  </MenuItem>
-                ))}
-              </Select>
-              {!year && (
-        <FormHelperText
-          sx={{
-            position: "absolute",
-            bottom: -20,
-            left: 0,
-            fontSize: "0.75rem",
-            color: "error.main",
-          }}
-        >
-          Please select year
-        </FormHelperText>
-      )}
-            </FormControl>
+                <Select
+                  multiple
+                  value={quarterlySelection}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const filtered = value.filter(Boolean);
+                    setQuarterlySelection([...new Set(filtered)]);
+                  }}
+                  input={<OutlinedInput label="Select Quarter" />}
+                  disabled={!year}
+                  renderValue={(selected) => {
+                    const filtered = selected.filter(Boolean);
+                    return filtered.length === 0
+                      ? ""
+                      : filtered
+                          .map(
+                            (q) =>
+                              quarterlyList.find((x) => x.value === q)?.label
+                          )
+                          .join(", ");
+                  }}
+                >
+                  {quarterlyList.map((qtr) => (
+                    <MenuItem key={qtr.value} value={qtr.value}>
+                      <Checkbox
+                        checked={quarterlySelection.includes(qtr.value)}
+                      />
+                      <ListItemText primary={qtr.label} />
+                    </MenuItem>
+                  ))}
+                </Select>
+                {!year && (
+                  <FormHelperText
+                    sx={{
+                      position: "absolute",
+                      bottom: -20,
+                      left: 0,
+                      fontSize: "0.75rem",
+                      color: "error.main",
+                    }}
+                  >
+                    Please select year
+                  </FormHelperText>
+                )}
+              </FormControl>
             </Box>
           </LocalizationProvider>
         )}
@@ -687,6 +719,16 @@ let last = end.split("-")[1];
         >
           Clear
         </Button>
+
+        <Button
+          variant="outlined"
+          color="success"
+          onClick={() => {
+            handleDownload();
+          }}
+        >
+          Download
+        </Button>
       </Box>
 
       {loading && (
@@ -709,7 +751,6 @@ let last = end.split("-")[1];
         const formattedMonth = formatMonthKey(monthKey);
 
         const clientsMap = monthObj?.clients || monthObj || {};
-        console.log("clientsMap", monthObj);
 
         const monthTotals = {
           total_head_count: 0,
@@ -730,10 +771,10 @@ let last = end.split("-")[1];
         });
 
         const monthTotalAmount = monthTotals.total_allowance ?? 0;
-        const monthTotalA= monthTotals.A ?? 0;
-        const monthTotalB= monthTotals.B ?? 0;
-        const monthTotalC= monthTotals.C ?? 0;
-        const monthTotalPRIME= monthTotals.PRIME ?? 0;
+        const monthTotalA = monthTotals.A ?? 0;
+        const monthTotalB = monthTotals.B ?? 0;
+        const monthTotalC = monthTotals.C ?? 0;
+        const monthTotalPRIME = monthTotals.PRIME ?? 0;
         const diff = prevTotal !== null ? monthTotalAmount - prevTotal : 0;
 
         let diffColor = "black";
@@ -1107,27 +1148,24 @@ let last = end.split("-")[1];
                   </TableBody>
                 </Table> */}
 
-                {
-  loading ? (
-    <Box sx={{ p: 2 }}>
-      <Typography>Loading...</Typography>
-    </Box>
-  ) : data?.message ? (
-    <Box sx={{ p: 2 }}>
-      <Typography color="error">{data.message}</Typography>
-    </Box>
-  ) : (
-    <ClientSummaryTable
-      clientsMap={clientsMap}
-      monthTotals={monthTotals}
-      monthTotalA={monthTotalA}
-      monthTotalB={monthTotalB}
-      monthTotalC={monthTotalC}
-      monthTotalPRIME={monthTotalPRIME}
-    />
-  )
-}
-
+                {loading ? (
+                  <Box sx={{ p: 2 }}>
+                    <Typography>Loading...</Typography>
+                  </Box>
+                ) : data?.message ? (
+                  <Box sx={{ p: 2 }}>
+                    <Typography color="error">{data.message}</Typography>
+                  </Box>
+                ) : (
+                  <ClientSummaryTable
+                    clientsMap={clientsMap}
+                    monthTotals={monthTotals}
+                    monthTotalA={monthTotalA}
+                    monthTotalB={monthTotalB}
+                    monthTotalC={monthTotalC}
+                    monthTotalPRIME={monthTotalPRIME}
+                  />
+                )}
               </Box>
             </AccordionDetails>
           </Accordion>
