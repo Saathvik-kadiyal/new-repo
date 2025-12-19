@@ -206,8 +206,11 @@ const EmployeeEditPage = () => {
                           key={key}
                           sx={{
                             border: "1px solid #ddd",
+                            borderColor: row.reason && row.reason[key] ? "red" : "#ddd", 
                             color: row.reason && row.reason[key] ? "red" : "inherit", 
                             fontWeight: row.reason && row.reason[key] ? "bold" : "normal",
+                            backgroundColor: row.reason && row.reason[key] ? "rgba(255, 0, 0, 0.1)" : "inherit", 
+                            // borderRadius: "4px", 
                           }}
                         >
                           {row[key] ?? "-"}

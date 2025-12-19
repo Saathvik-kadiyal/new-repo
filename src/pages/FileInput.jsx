@@ -71,7 +71,6 @@ const FileInput = () => {
       e.target.value = null;
     }}
     onChange={(e) => {
-      console.log("hi");
       handleFileChange(e);
     }}
   />

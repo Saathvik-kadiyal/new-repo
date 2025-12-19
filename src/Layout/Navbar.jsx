@@ -15,11 +15,11 @@ const Navbar = () => {
           onClick={() => setDropdownOpen((prev) => !prev)}
           className="flex items-center gap-2 focus:outline-none"
         >
-          <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white">
-            <User size={20} />
+          <div className="w-14 h-14 rounded-full  bg-[#2f2e83] flex items-center justify-center text-white">
+            <User size={32} />
           </div>
           <ChevronDown
-            size={16}
+            size={20}
             className={`transition-transform duration-200 ${
               dropdownOpen ? "rotate-180" : ""
             }`}
@@ -31,8 +31,8 @@ const Navbar = () => {
     onClick={Auth.logout}
     className="flex items-center gap-2 text-neutral-700 px-4 py-2 cursor-pointer transition-all duration-200"
   >
-    <LogOut size={18} />
-    <span className="font-medium text-sm">Logout</span>
+    <LogOut size={24} />
+    <span className="font-medium text-xl">Logout</span>
   </button>
 </div>
         )}
