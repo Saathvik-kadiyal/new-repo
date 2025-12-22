@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const backendApi = import.meta.env.VITE_BACKEND_API;
+const token = localStorage.getItem("access_token");
 
 
 export const debounce = (fn, delay) => {
@@ -15,7 +16,6 @@ export const debounce = (fn, delay) => {
 export const fetchDashboardClientSummary = async (
   payload
 ) => {
-  const token = localStorage.getItem("access_token");
   if (!token) throw new Error("Not authenticated");
 
   try {
@@ -53,10 +53,10 @@ export const fetchEmployees = async ({
   let requestParams = {};
 
   if (!hasParams) {
-    url = `${backendApi}/display/`;
+    url = `${backendApi}/employee-details/search`;
     requestParams = { start, limit };
   } else {
-    url = `${backendApi}/employee-details/Search`;
+    url = `${backendApi}/employee-details/search`;
     requestParams = { ...params, start, limit };
   }
 
@@ -170,6 +170,73 @@ export const updateEmployeeShift = async (token, emp_id,
   }
 };
 
+export const toBackendMonthFormat = (monthStr) => {
+  if (!monthStr) return "";
+
+  const months = {
+    Jan: "01",
+    Feb: "02",
+    Mar: "03",
+    Apr: "04",
+    May: "05",
+    Jun: "06",
+    Jul: "07",
+    Aug: "08",
+    Sep: "09",
+    Oct: "10",
+    Nov: "11",
+    Dec: "12",
+  };
+
+  const match = monthStr.match(/([A-Za-z]{3})'(\d{2})/);
+  if (!match) return monthStr;
+
+  const [, mon, year] = match;
+  const yyyy = "20" + year; 
+  return `${yyyy}-${months[mon]}`;
+};
+
+
+export const toFrontendMonthFormat = (monthStr) => {
+  if (!monthStr) return "";
+
+  const [year, month] = monthStr.split("-");
+  const months = [
+    "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
+  ];
+
+  return `${months[parseInt(month, 10) - 1]}'${year.slice(2)}`;
+};
+
+
+export const correctEmployeeRows = async (token, correctedRows) => {
+  if (!token) throw new Error("Not authenticated");
+ 
+  const payload = correctedRows.map(({ reason, ...row }) => row);
+ 
+  try {
+    const response = await axios.post(
+      `${backendApi}/upload/correct_error_rows`,
+      { corrected_rows: payload },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+ 
+    return response.data;
+  } catch (err) {
+    if (err.response) {
+      console.error("Backend error:", err.response.data);
+      throw err.response.data;
+    }
+    throw err;
+  }
+};
+ 
+
 
 export const pieChart = async (token, startMonth, endMonth, topFilter) => {
   if (!token) throw new Error("Not authenticated");
@@ -226,7 +293,6 @@ export const fetchHorizontalBar = async (token, startMonth, endMonth, topFilter)
 export const fetchClientSummary = async (
   payload
 ) => {
-  const token = localStorage.getItem("access_token");
   if (!token) throw new Error("Not authenticated");
 
   try {
@@ -419,6 +485,19 @@ export const fetchClientDepartments = async () => {
     return reponse.data;
   } catch (error) {
     return error
+  }
+}
+
+export const fetchClientEnums = async ()=>{
+  if(token.length<1 || !token) return "Unauthorized";
+
+  try{
+    const response = await axios.get(`${backendApi}/display/client-enum`,{
+      headers:{Authorization:`Bearer ${token}`}
+    });
+    return response.data
+  }catch(error){
+console.log(error)
   }
 }
 

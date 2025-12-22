@@ -16,7 +16,7 @@ export default function DepartmentBarChart({
 
   const rowHeight = 40;
   const leftPadding = 140;
-  const topPadding = 20;
+  const topPadding =0;
   const chartHeight = bars.length * rowHeight;
   const chartWidth = 300;
   const maxBarWidth = chartWidth - 160;
@@ -31,7 +31,7 @@ export default function DepartmentBarChart({
   // );
 
   return (
-    <div className="relative h-full flex flex-col p-4 gap-4 w-full">
+    <div className="relative h-full flex flex-col p-4 gap-4 w-full -z-10">
       <h3 className="font-bold">{clientName}</h3>
 
       <div className="mt-4 ">

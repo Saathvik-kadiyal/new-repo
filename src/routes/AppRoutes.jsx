@@ -4,8 +4,7 @@ import Layout from "../Layout/Layout.jsx";
 import PrivateRoute from "./PrivateRoute.jsx";
 import Comparision from "../component/Comparision.jsx";
 import ClientSummaryDetailedPage from "../pages/ClientSummaryDetailPage.jsx";
-
-// Lazy imports
+import EmployeeEditPage from "../pages/EmployeeEditPage.jsx";
 const DashboardPage = lazy(() => import("../pages/DashboardPage.jsx"));
 const ClientSummaryPage = lazy(() => import("../pages/ClientSummaryPage.jsx"));
 const FileInput = lazy(() => import("../pages/FileInput.jsx"));
@@ -50,6 +49,14 @@ const AppRoutes = () => {
               <FileInput />
             </Suspense>
           }
+        />
+        <Route
+        path="shift-allowance/edit"
+        element={
+            <Suspense fallback={<div className="p-6">Loading Edit Page...</div>}>
+              <EmployeeEditPage/>
+            </Suspense>
+        }
         />
         <Route
           path="client-summary"

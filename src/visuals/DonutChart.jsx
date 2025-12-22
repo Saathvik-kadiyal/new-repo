@@ -2,12 +2,27 @@ import { useState, useEffect, useRef } from "react";
 import { getColor, describeArc, polarToCartesian } from "../utils/utils";
 import Tooltip from "../component/Tooltip";
 
-export default function DonutChart({ clients, onSelectClient }) {
+export default function DonutChart({ clients, onSelectClient, onSelectColor,clientColors,setClientColors,enums }) {
   const containerRef = useRef(null);
   const [size, setSize] = useState(320);
   const [hover, setHover] = useState(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [centerClient, setCenterClient] = useState("");
+
+const getClientColor = (clientName, index) => {
+  return enums[clientName]?.hexcode ?? getColor(index);
+};
+
+const getClientLabel = (clientName) => {
+  return enums[clientName]?.value ?? clientName;
+};
+
+
+  const selectClient = (name, index) => {
+    setCenterClient(name);
+    onSelectClient(name);
+    onSelectColor(getClientColor(name,index));
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -21,10 +36,12 @@ export default function DonutChart({ clients, onSelectClient }) {
   }, []);
 
   useEffect(() => {
-    const firstKey = Object.keys(clients)[0];
-    setCenterClient(firstKey);
-    onSelectClient(firstKey);
-  }, []);
+    if (!clients || Object.keys(clients).length === 0) return;
+
+    const keys = Object.keys(clients);
+    selectClient(keys[0], 0);
+  }, [clients]);
+
   const radius = size / 2 - 40;
   const donutThickness = radius * 0.28;
 
@@ -83,14 +100,11 @@ export default function DonutChart({ clients, onSelectClient }) {
                     cy="0"
                     r={radius}
                     fill="none"
-                    stroke={getColor(i)}
+                    stroke={getClientColor(name, i)}
                     strokeWidth={donutThickness}
                     cursor="pointer"
                     className="transition-all duration-200"
-                    onClick={() => {
-                      setCenterClient(name);
-                      onSelectClient(name);
-                    }}
+                    onClick={() => selectClient(name, i)}
                     onMouseMove={(e) => {
                       setHover({ name, client });
                       setPos({ x: e.clientX, y: e.clientY });
@@ -101,7 +115,7 @@ export default function DonutChart({ clients, onSelectClient }) {
                   <path
                     d={path}
                     fill="none"
-                    stroke={getColor(i)}
+                    stroke={getClientColor(name, i)}
                     strokeWidth={donutThickness}
                     cursor="pointer"
                     className={`
@@ -110,8 +124,7 @@ export default function DonutChart({ clients, onSelectClient }) {
       ${!hover || isHovered ? "opacity-100" : "opacity-30"}
     `}
                     onClick={() => {
-                      setCenterClient(name);
-                      onSelectClient(name);
+                      selectClient(name, i);
                     }}
                     onMouseMove={(e) => {
                       setHover({ name, client });
@@ -166,7 +179,7 @@ export default function DonutChart({ clients, onSelectClient }) {
                     fontSize={12}
                     className="font-medium text-black"
                   >
-                    {name}
+                    {getClientLabel(name)}
                     <tspan
                       x="0"
                       dy="1.4em"
@@ -225,7 +238,6 @@ export default function DonutChart({ clients, onSelectClient }) {
         </g>
       </svg>
 
-      {/* Tooltip */}
       <Tooltip x={pos.x} y={pos.y}>
         {hover && (
           <>

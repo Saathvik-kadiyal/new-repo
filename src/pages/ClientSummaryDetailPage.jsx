@@ -49,6 +49,12 @@ const ClientSummaryDetailedPage = () => {
   const [error, setError] = useState("");
   const [expandedMonth, setExpandedMonth] = useState([]);
 
+    const isEndMonthInvalid =
+      startMonth &&
+      endMonth &&
+      (dayjs(endMonth).isBefore(dayjs(startMonth), "month") ||
+        dayjs(endMonth).isSame(dayjs(startMonth), "month"));
+
   const token = localStorage.getItem("access_token");
 
   const timelines = [
@@ -80,7 +86,7 @@ const ClientSummaryDetailedPage = () => {
   ];
 
   const runFetch = useCallback(
-    debounce(async (token, payload) => {
+    debounce(async (payload) => {
       setLoading(true);
       setError("");
       try {
@@ -146,7 +152,7 @@ const ClientSummaryDetailedPage = () => {
     let payload = {
       clients: "ALL",
     };
-    runFetch(token, payload);
+    runFetch( payload);
   }, []);
 
   // const accountManagerList = useMemo(() => {
@@ -326,7 +332,7 @@ const ClientSummaryDetailedPage = () => {
 
           <Box
             sx={{
-              maxHeight: "60vh",
+              maxHeight: "80vh",
               overflowY: "auto",
               mb: 2,
               scrollBehavior: "smooth",
@@ -444,32 +450,7 @@ const ClientSummaryDetailedPage = () => {
             })}
           </Box>
 
-          <span className="flex justify-between w-full">
-            <Button
-              sx={{ mt: 2, transition: "all 0.3s ease" }}
-              variant="outlined"
-              color="error"
-              onClick={() => {
-                if (selectedClients.length === 0) {
-                  return;
-                } else {
-                  setSelectedClients([]);
-                  runFetch(token, { clients: "ALL" });
-                }
-              }}
-            >
-              Clear
-            </Button>
-            <Button
-              sx={{ mt: 2, transition: "all 0.3s ease" }}
-              variant="contained"
-              onClick={() => {
-                handleClientSummaryWithDepartments();
-              }}
-            >
-              Search
-            </Button>
-          </span>
+         
         </Box>
       </Box>
 
@@ -495,27 +476,42 @@ const ClientSummaryDetailedPage = () => {
           </Button>
         </Box>
 
-        {timelineSelection === "range" && (
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              views={["year", "month"]}
-              label="Start Month"
-              value={startMonth}
-              onChange={(v) => setStartMonth(v)}
-              disableFuture
-              slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
-            />
-            <DatePicker
-              views={["year", "month"]}
-              label="End Month"
-              value={endMonth}
-              minDate={startMonth ? dayjs(startMonth) : undefined}
-              disableFuture
-              onChange={(v) => setEndMonth(v)}
-              slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
-            />
-          </LocalizationProvider>
-        )}
+       {timelineSelection === "range" && (
+  <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <DatePicker
+      views={["year", "month"]}
+      label="Start Month"
+      value={startMonth}
+      onChange={(v) => {
+        setStartMonth(v);
+      }}
+      disableFuture
+      slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
+    />
+    
+    <DatePicker
+      views={["year", "month"]}
+      label="End Month"
+      value={endMonth}
+      minDate={startMonth ? dayjs(startMonth) : undefined}
+      disableFuture
+      onChange={(v) => {
+        setEndMonth(v);
+      }}
+      slotProps={{ textField: { size: "small", sx: { width: 150 } } }}
+    />
+
+    {isEndMonthInvalid && (
+      <FormHelperText
+        error
+        sx={{ m: 0, p: 0, position: "absolute", bottom: -20 }}
+      >
+        End month must be after start month
+      </FormHelperText>
+    )}
+  </LocalizationProvider>
+)}
+
 
         {timelineSelection === "monthly" && (
           <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -698,6 +694,7 @@ const ClientSummaryDetailedPage = () => {
 
         <Button
           variant="contained"
+          disabled={isEndMonthInvalid}
           onClick={() => {
             handleClientSummaryWithDepartments();
           }}
@@ -714,7 +711,7 @@ const ClientSummaryDetailedPage = () => {
             setYear(null);
             setMultipleMonths([]);
             setQuarterlySelection([]);
-            runFetch(token, { clients: "ALL" });
+            runFetch( { clients: "ALL" });
           }}
         >
           Clear

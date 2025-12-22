@@ -27,15 +27,17 @@ import {
 import {
   debounce,
   fetchClientDepartments,
+  fetchClientEnums,
   fetchDashboardClientSummary,
 } from "../utils/helper";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import DepartmentBarChart from "../visuals/DepartmentBarChart.jsx";
 import DonutChart from "../visuals/DonutChart.jsx";
 import AccountManagersTable from "../component/AccountManagersTable.jsx";
+import DepartmentAllowanceChart from "../visuals/DepartmentAllowanceChart.jsx";
+import HorizontalAllowanceBarChart from "../visuals/HorizontalAllowanceBarChart.jsx";
 
 const hideScrollbar = {
-  overflowY: "auto",
   scrollbarWidth: "none",
   msOverflowStyle: "none",
   "&::-webkit-scrollbar": {
@@ -63,6 +65,47 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [data, setData] = useState({});
+  const [selectedColor, setSelectedColor] = useState("");
+  const [clientColors, setClientColors] = useState({});
+  const [enums, setEnums] = useState(null);
+
+  const horizontalChartData = useMemo(() => {
+    if (!data?.dashboard?.clients) return null;
+
+    let clientsArray = Object.entries(data.dashboard.clients);
+
+    if (topFilter !== "ALL") {
+      clientsArray = clientsArray.slice(0, parseInt(topFilter, 10));
+    }
+
+    if (selectedClients && Object.keys(selectedClients).length > 0) {
+      clientsArray = clientsArray.filter(([client]) =>
+        Object.keys(selectedClients).includes(client)
+      );
+    }
+
+    if (clientsArray.length === 0) return null;
+
+    return Object.fromEntries(
+      clientsArray.map(([client, clientData]) => [
+        client,
+        {
+          total_allowance: clientData.total_allowance,
+          color: clientColors[client],
+          shift_A: clientData.shift_A,
+          shift_B: clientData.shift_B,
+          shift_C: clientData.shift_C,
+          shift_PRIME: clientData.shift_PRIME,
+        },
+      ])
+    );
+  }, [data, topFilter, selectedClients, clientColors]);
+
+  const isEndMonthInvalid =
+    startMonth &&
+    endMonth &&
+    (dayjs(endMonth).isBefore(dayjs(startMonth), "month") ||
+      dayjs(endMonth).isSame(dayjs(startMonth), "month"));
 
   const timelines = [
     { label: "Monthly", value: "monthly" },
@@ -108,12 +151,24 @@ const DashboardPage = () => {
     []
   );
 
+  const runClientEnums = useCallback(async () => {
+    try {
+      const response = await fetchClientEnums();
+      console.log(response);
+      setEnums(response);
+    } catch (error) {
+      setError(error);
+    }
+  }, []);
+
   useEffect(() => {
     let payload = {
       clients: "ALL",
       top: topFilter,
     };
     runFetch(payload);
+
+    runClientEnums();
   }, []);
 
   const transformData = (data) => {
@@ -288,458 +343,536 @@ const DashboardPage = () => {
   };
 
   return (
-    <Box>
+    <Box
+      sx={{
+        position: "relative",
+        width: "100%",
+        justifyContent: "center",
+        paddingX: 4,
+      }}
+    >
       <Box
+        onClick={() => setClientDialogOpen(false)}
         sx={{
-          position: "relative",
-          p: 0,
-          pt: 2,
-          m: 0,
-          height: "100vh",
-          overflowX: "hidden",
-          ...hideScrollbar,
-          transition: "all 0.3s ease-in-out",
+          position: "absolute",
+          inset: 0,
+          top: 0,
+          backgroundColor: "rgba(0,0,0,0.3)",
+          backdropFilter: "blur(6px)",
+          opacity: clientDialogOpen ? 1 : 0,
+          pointerEvents: clientDialogOpen ? "auto" : "none",
+          transition: "opacity 0.3s ease",
+          zIndex: 100,
         }}
       >
         <Box
-          onClick={() => setClientDialogOpen(false)}
+          onClick={(e) => e.stopPropagation()}
           sx={{
             position: "absolute",
-            inset: 0,
-            zIndex: 200,
+            top: 0,
+            left: 0,
+            width: 320,
             height: "100%",
-            backgroundColor: "rgba(0,0,0,0.3)",
-            backdropFilter: "blur(6px)",
-            opacity: clientDialogOpen ? 1 : 0,
-            pointerEvents: clientDialogOpen ? "auto" : "none",
-            transition: "all 0.3s ease",
+            backgroundColor: "white",
+            padding: 2,
+            transform: clientDialogOpen ? "translateX(0)" : "translateX(-100%)",
+            transition: "transform 0.3s ease",
+            zIndex: 1300,
+            display: "flex",
+            flexDirection: "column",
+            overflowY: "auto",
           }}
         >
           <Box
             sx={{
-              position: "absolute",
-              top: 0,
-              width: 320,
-              height: "100%",
-              zIndex: 200,
-              backgroundColor: "white",
-              padding: 2,
-              transform: clientDialogOpen
-                ? "translateX(0)"
-                : "translateX(-100%)",
-              transition: "all 0.3s ease",
-              ...hideScrollbar,
+              display: "flex",
+              alignItems: "center",
+              mb: 2,
+              justifyContent: "space-between",
+              px: 2.4,
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Select Clients
-            </Typography>
+            <Typography variant="h6">Select Clients</Typography>
+            <X
+              style={{ cursor: "pointer" }}
+              onClick={() => setClientDialogOpen(false)}
+            />
+          </Box>
 
-            <Box
-              sx={{
-                maxHeight: "60vh",
-                ...hideScrollbar,
-                mb: 2,
-                scrollBehavior: "smooth",
-              }}
-            >
-              {clientDepartments.map(({ client, departments }) => {
-                const isExpanded = expandedClient === client;
-                const clientChecked =
-                  selectedClients[client]?.length === departments.length &&
-                  departments.length > 0;
-                const clientIndeterminate =
-                  selectedClients[client]?.length > 0 &&
-                  selectedClients[client]?.length < departments.length;
+          <Box sx={{ flex: 1, overflowY: "auto", ...hideScrollbar }}>
+            {clientDepartments.map(({ client, departments }) => {
+              const isExpanded = expandedClient === client;
+              const clientChecked =
+                selectedClients[client]?.length === departments.length &&
+                departments.length > 0;
+              const clientIndeterminate =
+                selectedClients[client]?.length > 0 &&
+                selectedClients[client]?.length < departments.length;
 
-                return (
-                  <Accordion
-                    key={client}
-                    expanded={isExpanded}
-                    onChange={() =>
-                      setExpandedClient(isExpanded ? null : client)
-                    }
-                    sx={{
-                      mb: 1,
-                      backgroundColor: "transparent",
-                      boxShadow: "none",
-                      width: "100%",
-                      transition: "backgroundColor 0.3s ease",
-                    }}
-                    disableGutters
-                  >
-                    <AccordionSummary
-                      sx={{
-                        display: "flex",
-                        justifyContent: "flex-start",
-                        alignItems: "center",
-                        width: "100%",
-                        transition: "transform 0.1s ease",
+              return (
+                <Accordion
+                  key={client}
+                  expanded={isExpanded}
+                  onChange={() => setExpandedClient(isExpanded ? null : client)}
+                  disableGutters
+                  sx={{ background: "transparent", boxShadow: "none" }}
+                >
+                  <AccordionSummary>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={clientChecked}
+                          indeterminate={clientIndeterminate}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleDepartment(client, "ALL")}
+                        />
+                      }
+                      label={<Typography fontWeight={600}>{client}</Typography>}
+                    />
+                    <ChevronDown
+                      size={18}
+                      style={{
+                        marginLeft: "auto",
+                        transform: isExpanded ? "rotate(180deg)" : "rotate(0)",
+                        transition: "0.3s",
                       }}
-                    >
-                      <span className="flex items-center w-[90%]">
-                        <FormControlLabel
-                          sx={{ alignItems: "center" }}
-                          control={
-                            <Checkbox
-                              disableRipple
-                              checked={clientChecked}
-                              indeterminate={clientIndeterminate}
-                              onChange={() => toggleDepartment(client, "ALL")}
-                              onClick={(e) => e.stopPropagation()}
-                              sx={{
-                                transition:
-                                  "background-color 0.2s ease, transform 0.2s ease",
-                                "&:focus": {
-                                  outline: "none",
-                                  boxShadow: "none",
-                                },
-                              }}
-                            />
-                          }
-                          label={
-                            <Typography fontWeight={600} fontSize={12}>
-                              {client}
-                            </Typography>
-                          }
-                        />
-                      </span>
-                      <span
-                        className="flex items-center"
-                        style={{
-                          transition: "all 0.3s ease",
-                          transform: isExpanded
-                            ? "rotate(180deg)"
-                            : "rotate(0deg)",
-                        }}
-                      >
-                        <ChevronDown size={20} />
-                      </span>
-                    </AccordionSummary>
+                    />
+                  </AccordionSummary>
 
-                    <AccordionDetails sx={{ px: 2, py: 1 }}>
-                      {departments.map((dept) => (
-                        <FormControlLabel
-                          key={dept}
-                          control={
-                            <Checkbox
-                              disableRipple
-                              checked={
-                                selectedClients[client]?.includes(dept) || false
-                              }
-                              onChange={() => toggleDepartment(client, dept)}
-                              sx={{
-                                transition: ".3s ease",
-                              }}
-                            />
-                          }
-                          label={dept}
-                          sx={{
-                            display: "block",
-                            ml: 3,
-                            mb: 0.5,
-                            transition: "none",
-                          }}
-                        />
-                      ))}
-                    </AccordionDetails>
-                  </Accordion>
-                );
-              })}
-            </Box>
-
-            <span className="flex justify-between w-full">
-              <Button
-                sx={{ mt: 2, transition: "all 0.3s ease" }}
-                variant="outlined"
-                color="error"
-                onClick={() => {
-                  if (selectedClients.length === 0) return;
-                  setSelectedClients([]);
-                  setTopFilter("5");
-                  runFetch({ clients: "ALL", top: "5" });
-                }}
-              >
-                Clear
-              </Button>
-              <Button
-                sx={{ mt: 2, transition: "all 0.3s ease" }}
-                variant="contained"
-                onClick={handleClientSummaryWithDepartments}
-              >
-                Search
-              </Button>
-            </span>
+                  <AccordionDetails sx={{ pl: 4 }}>
+                    {departments.map((dept) => (
+                      <FormControlLabel
+                        key={dept}
+                        control={
+                          <Checkbox
+                            checked={
+                              selectedClients[client]?.includes(dept) || false
+                            }
+                            onChange={() => toggleDepartment(client, dept)}
+                          />
+                        }
+                        label={dept}
+                      />
+                    ))}
+                  </AccordionDetails>
+                </Accordion>
+              );
+            })}
           </Box>
         </Box>
+      </Box>
 
-        <Box
-          sx={{
-            position: "relative",
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            gap: 2,
-            mb: 3,
-            alignItems: "center",
+      <Box
+        sx={{
+          position: "relative",
+          zIndex: 10,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 2,
+          mb: 3,
+          alignItems: "center",
+          mt: 2,
+        }}
+      >
+        <Button
+          variant="outlined"
+          color="primary"
+          sx={{ py: 1, transition: "all 0.3s ease" }}
+          size="small"
+          onClick={() => setClientDialogOpen(true)}
+        >
+          Select Clients
+        </Button>
+
+        {timelineSelection === "range" && (
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Box sx={{ display: "flex", gap: 2, position: "relative" }}>
+                <DatePicker
+                  views={["year", "month"]}
+                  label="Start Month"
+                  value={startMonth}
+                  disableFuture
+                  onChange={(newStart) => {
+                    setStartMonth(newStart);
+
+                    if (
+                      endMonth &&
+                      newStart &&
+                      dayjs(endMonth).isSameOrBefore(dayjs(newStart), "month")
+                    ) {
+                      setEndMonth(null);
+                    }
+                  }}
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      sx: { width: 150 },
+                    },
+                  }}
+                />
+
+                <DatePicker
+                  views={["year", "month"]}
+                  label="End Month"
+                  value={endMonth}
+                  disableFuture
+                  minDate={
+                    startMonth ? dayjs(startMonth).add(1, "month") : undefined
+                  }
+                  onChange={setEndMonth}
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      sx: { width: 150 },
+                    },
+                  }}
+                />
+              </Box>
+
+              {isEndMonthInvalid && (
+                <FormHelperText
+                  error
+                  sx={{ m: 0, p: 0, position: "absolute", bottom: -20 }}
+                >
+                  End month must be after start month
+                </FormHelperText>
+              )}
+            </Box>
+          </LocalizationProvider>
+        )}
+
+        {timelineSelection === "monthly" && (
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              views={["year"]}
+              label="Select Year"
+              value={year}
+              onChange={(v) => {
+                setYear(v);
+                setMultipleMonths(v ? monthsList.map((m) => m.value) : []);
+              }}
+              disableFuture
+              slotProps={{
+                textField: { size: "small", sx: { width: 150 } },
+              }}
+            />
+            <Box sx={{ position: "relative", width: 160 }}>
+              <FormControl sx={{ width: "100%" }} size="small">
+                <InputLabel>Select Months</InputLabel>
+                <Select
+                  multiple
+                  value={multipleMonths}
+                  disabled={!year}
+                  input={<OutlinedInput label="Select Months" />}
+                  renderValue={(selected) =>
+                    selected.length === 12
+                      ? "All Months"
+                      : selected
+                          .map(
+                            (m) => monthsList.find((x) => x.value === m)?.label
+                          )
+                          .join(", ")
+                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.includes("ALL")) {
+                      if (multipleMonths.length === 12) {
+                        setMultipleMonths([]);
+                      } else {
+                        setMultipleMonths(monthsList.map((m) => m.value));
+                      }
+                      return;
+                    }
+                    const uniqueMonths = [...new Set(value)];
+                    if (uniqueMonths.length === monthsList.length) {
+                      setMultipleMonths(monthsList.map((m) => m.value));
+                    } else {
+                      setMultipleMonths(uniqueMonths);
+                    }
+                  }}
+                >
+                  <MenuItem value="ALL">
+                    <Checkbox checked={multipleMonths.length === 12} />
+                    <ListItemText primary="All Months" />
+                  </MenuItem>
+
+                  {monthsList.map((month) => (
+                    <MenuItem key={month.value} value={month.value}>
+                      <Checkbox
+                        checked={multipleMonths.includes(month.value)}
+                      />
+                      <ListItemText primary={month.label} />
+                    </MenuItem>
+                  ))}
+                </Select>
+
+                {!year && (
+                  <FormHelperText
+                    sx={{
+                      position: "absolute",
+                      bottom: -20,
+                      left: 0,
+                      fontSize: "0.75rem",
+                      color: "error.main",
+                    }}
+                  >
+                    Please select year
+                  </FormHelperText>
+                )}
+              </FormControl>
+            </Box>
+          </LocalizationProvider>
+        )}
+
+        {timelineSelection === "quarterly" && (
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              views={["year"]}
+              label="Select Year"
+              value={year}
+              onChange={(v) => {
+                setYear(v);
+                setQuarterlySelection(
+                  v ? quarterlyList.map((m) => m.value) : []
+                );
+              }}
+              disableFuture
+              slotProps={{
+                textField: { size: "small", sx: { width: 150 } },
+              }}
+            />
+            <Box sx={{ position: "relative", width: 160 }}>
+              <FormControl sx={{ width: 160 }} size="small">
+                <InputLabel>Select Quarter</InputLabel>
+                <Select
+                  multiple
+                  value={quarterlySelection}
+                  onChange={(e) =>
+                    setQuarterlySelection([...new Set(e.target.value)])
+                  }
+                  input={<OutlinedInput label="Select Quarter" />}
+                  disabled={!year}
+                  renderValue={(selected) =>
+                    selected.length === 0
+                      ? ""
+                      : selected
+                          .map(
+                            (q) =>
+                              quarterlyList.find((x) => x.value === q)?.label
+                          )
+                          .join(", ")
+                  }
+                >
+                  {quarterlyList.map((qtr) => (
+                    <MenuItem key={qtr.value} value={qtr.value}>
+                      <Checkbox
+                        checked={quarterlySelection.includes(qtr.value)}
+                      />
+                      <ListItemText primary={qtr.label} />
+                    </MenuItem>
+                  ))}
+                </Select>
+                {!year && (
+                  <FormHelperText
+                    sx={{
+                      position: "absolute",
+                      bottom: -20,
+                      left: 0,
+                      fontSize: "0.75rem",
+                      color: "error.main",
+                    }}
+                  >
+                    Please select year
+                  </FormHelperText>
+                )}
+              </FormControl>
+            </Box>
+          </LocalizationProvider>
+        )}
+
+        <Box>
+          <FormControl sx={{ width: 120 }}>
+            <InputLabel>Selection</InputLabel>
+            <Select
+              value={timelineSelection}
+              label="Selection"
+              size="small"
+              onChange={(e) => setTimelineSelection(e.target.value)}
+            >
+              {timelines.map((timeline) => (
+                <MenuItem key={timeline.value} value={timeline.value}>
+                  {timeline.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Box>
+          <FormControl sx={{ width: 120 }}>
+            <InputLabel>Top Filter</InputLabel>
+            <Select
+              value={topFilter}
+              label="Top Filter"
+              size="small"
+              onChange={(e) => setTopFilter(e.target.value)}
+            >
+              <MenuItem value="5">Top 5</MenuItem>
+              <MenuItem value="10">Top 10</MenuItem>
+              <MenuItem value="ALL">All</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Button
+          variant="contained"
+          onClick={handleClientSummaryWithDepartments}
+          disabled={isEndMonthInvalid}
+        >
+          Search
+        </Button>
+
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={() => {
+            setStartMonth(null);
+            setEndMonth(null);
+            setYear(null);
+            setMultipleMonths([]);
+            setQuarterlySelection([]);
+            setSelectedClients([]);
+            setTopFilter("5");
+            runFetch({ clients: "ALL", top: "5" });
           }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            sx={{ py: 1, transition: "all 0.3s ease" }}
-            size="small"
-            onClick={() => setClientDialogOpen(true)}
-          >
-            Select Clients
-          </Button>
+          Clear
+        </Button>
+      </Box>
 
-          {timelineSelection === "range" && (
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker
-                views={["year", "month"]}
-                label="Start Month"
-                value={startMonth}
-                onChange={setStartMonth}
-                disableFuture
-                slotProps={{
-                  textField: { size: "small", sx: { width: 150 } },
-                }}
-              />
-              <DatePicker
-                views={["year", "month"]}
-                label="End Month"
-                value={endMonth}
-                minDate={startMonth ? dayjs(startMonth) : undefined}
-                disableFuture
-                onChange={setEndMonth}
-                slotProps={{
-                  textField: { size: "small", sx: { width: 150 } },
-                }}
-              />
-            </LocalizationProvider>
-          )}
-
-          {timelineSelection === "monthly" && (
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker
-                views={["year"]}
-                label="Select Year"
-                value={year}
-                onChange={(v) => {
-                  setYear(v);
-                  setMultipleMonths(v ? monthsList.map((m) => m.value) : []);
-                }}
-                disableFuture
-                slotProps={{
-                  textField: { size: "small", sx: { width: 150 } },
-                }}
-              />
-              <Box sx={{ position: "relative", width: 160 }}>
-                <FormControl sx={{ width: "100%" }} size="small">
-                  <InputLabel>Select Months</InputLabel>
-                  <Select
-                    multiple
-                    value={multipleMonths}
-                    onChange={(e) => {
-                      setMultipleMonths([...new Set(e.target.value)]);
-                    }}
-                    input={<OutlinedInput label="Select Months" />}
-                    disabled={!year}
-                    renderValue={(selected) =>
-                      selected.length === 12
-                        ? "All Months"
-                        : selected
-                            .map(
-                              (m) =>
-                                monthsList.find((x) => x.value === m)?.label
-                            )
-                            .join(", ")
-                    }
-                  >
-                    <MenuItem
-                      value="ALL"
-                      onClick={() =>
-                        setMultipleMonths(
-                          multipleMonths.length === 12
-                            ? []
-                            : monthsList.map((m) => m.value)
-                        )
-                      }
-                    >
-                      <Checkbox checked={multipleMonths.length === 12} />
-                      <ListItemText primary="All Months" />
-                    </MenuItem>
-                    {monthsList.map((month) => (
-                      <MenuItem key={month.value} value={month.value}>
-                        <Checkbox
-                          checked={multipleMonths.includes(month.value)}
-                        />
-                        <ListItemText primary={month.label} />
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-            </LocalizationProvider>
-          )}
-
-          {timelineSelection === "quarterly" && (
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker
-                views={["year"]}
-                label="Select Year"
-                value={year}
-                onChange={(v) => {
-                  setYear(v);
-                  setQuarterlySelection(
-                    v ? quarterlyList.map((m) => m.value) : []
-                  );
-                }}
-                disableFuture
-                slotProps={{
-                  textField: { size: "small", sx: { width: 150 } },
-                }}
-              />
-              <Box sx={{ position: "relative", width: 160 }}>
-                <FormControl sx={{ width: 160 }} size="small">
-                  <InputLabel>Select Quarter</InputLabel>
-                  <Select
-                    multiple
-                    value={quarterlySelection}
-                    onChange={(e) =>
-                      setQuarterlySelection([...new Set(e.target.value)])
-                    }
-                    input={<OutlinedInput label="Select Quarter" />}
-                    disabled={!year}
-                    renderValue={(selected) =>
-                      selected.length === 0
-                        ? ""
-                        : selected
-                            .map(
-                              (q) =>
-                                quarterlyList.find((x) => x.value === q)?.label
-                            )
-                            .join(", ")
-                    }
-                  >
-                    {quarterlyList.map((qtr) => (
-                      <MenuItem key={qtr.value} value={qtr.value}>
-                        <Checkbox
-                          checked={quarterlySelection.includes(qtr.value)}
-                        />
-                        <ListItemText primary={qtr.label} />
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-            </LocalizationProvider>
-          )}
-
-          <Box>
-            <FormControl sx={{ width: 120 }}>
-              <InputLabel>Selection</InputLabel>
-              <Select
-                value={timelineSelection}
-                label="Selection"
-                size="small"
-                onChange={(e) => setTimelineSelection(e.target.value)}
-              >
-                {timelines.map((timeline) => (
-                  <MenuItem key={timeline.value} value={timeline.value}>
-                    {timeline.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-
-          <Box>
-            <FormControl sx={{ width: 120 }}>
-              <InputLabel>Top Filter</InputLabel>
-              <Select
-                value={topFilter}
-                label="Top Filter"
-                size="small"
-                onChange={(e) => setTopFilter(e.target.value)}
-              >
-                <MenuItem value="5">Top 5</MenuItem>
-                <MenuItem value="10">Top 10</MenuItem>
-                <MenuItem value="ALL">All</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-
-          <Button
-            variant="contained"
-            onClick={handleClientSummaryWithDepartments}
-          >
-            Search
-          </Button>
-
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={() => {
-              setStartMonth(null);
-              setEndMonth(null);
-              setYear(null);
-              setMultipleMonths([]);
-              setQuarterlySelection([]);
-              setTopFilter("5");
-              runFetch({ clients: "ALL", top: "5" });
-            }}
-          >
-            Clear
-          </Button>
-        </Box>
-
-        <Box sx={{ zIndex: 10 }}>
-          <div className="flex flex-col w-full gap-4">
-            <div className="flex flex-col md:flex-row gap-8 items-center pt-4 justify-evenly">
-              <div className="w-full md:max-w-3/5 h-80 rounded-md shadow-sm flex justify-center items-center ">
-                {data.dashboard ? (
-                  <DonutChart
-                    clients={data.dashboard.clients}
-                    onSelectClient={setSelectedDonutClient}
-                    topN={topFilter}
-                  />
-                ) : (
-                  loading && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <CircularProgress color="black" size={40} />
-                      <Typography sx={{ color: "black" }}>
-                        Loading...
-                      </Typography>
-                    </Box>
-                  )
-                )}
-              </div>
-
-              <div className="w-full md:max-w-2/5 h-80 rounded-md shadow-sm flex justify-center items-center">
-                {selectedDonutClient ? (
-                  <DepartmentBarChart
-                    clientName={selectedDonutClient}
-                    transformedData={transformedData}
-                  />
-                ) : (
-                  <h3 className="text-center">
-                    Click on the slice to view the graph
-                  </h3>
-                )}
-              </div>
-            </div>
-            <div className="pt-4">
-              {accountMananer.length > 0 && (
-                <AccountManagersTable
-                  data={accountMananer}
-                  clickedClient={selectedDonutClient}
+      <Box
+        sx={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+        }}
+      >
+        <div className="flex flex-col gap-4 ">
+          <div className="flex flex-col md:flex-row gap-8 items-center pt-4 justify-evenly">
+            <div className="w-full md:max-w-3/5 h-80 rounded-md shadow-sm flex justify-center items-center">
+              {/* DonutChart */}
+              {loading ? (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <CircularProgress color="black" size={40} />
+                  <Typography sx={{ color: "black" }}>Loading...</Typography>
+                </Box>
+              ) : data?.dashboard && Object.keys(data.dashboard).length > 0 ? (
+                <DonutChart
+                  clients={data.dashboard.clients}
+                  onSelectClient={setSelectedDonutClient}
+                  topN={topFilter}
+                  onSelectColor={setSelectedColor}
+                  clientColors={clientColors}
+                  setClientColors={setClientColors}
+                  enums={enums}
                 />
+              ) : (
+                <Typography>No data Available</Typography>
+              )}
+            </div>
+
+            <div className="w-full md:max-w-2/5 h-80 rounded-md shadow-sm flex justify-center items-center">
+              {/* DepartmentBarChart */}
+              {loading ? (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <CircularProgress color="black" size={40} />
+                  <Typography sx={{ color: "black" }}>Loading...</Typography>
+                </Box>
+              ) : selectedDonutClient &&
+                data?.dashboard &&
+                Object.keys(data.dashboard).length > 0 ? (
+                <DepartmentBarChart
+                  clientName={selectedDonutClient}
+                  transformedData={transformedData}
+                />
+              ) : data?.dashboard && Object.keys(data.dashboard).length > 0 ? (
+                <h3 className="text-center">
+                  Click on the slice to view the graph
+                </h3>
+              ) : (
+                <Typography>No data Available</Typography>
               )}
             </div>
           </div>
-        </Box>
+
+          <div className="flex flex-row gap-4 justify-evenly w-full">
+            <div className="rounded-md shadow-sm p-4 w-2/5">
+            {/* HorizontalAllowanceBarChart */}
+            {loading && (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                <CircularProgress />
+              </Box>
+            )}
+
+            {!loading && horizontalChartData && (
+              <HorizontalAllowanceBarChart
+                chartDataFromParent={horizontalChartData}
+              />
+            )}
+
+            {!loading && !horizontalChartData && (
+              <Typography align="center">No data Available</Typography>
+            )}
+          </div>
+
+          <div className="shadow-sm p-8 rounded-xl w-2/5">
+            {loading && (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                <CircularProgress />
+              </Box>
+            )}
+
+            {!loading && selectedDonutClient && transformedData && (
+              <DepartmentAllowanceChart
+                clientName={selectedDonutClient}
+                transformedData={transformedData}
+                selectedColor={selectedColor}
+              />
+            )}
+
+            {!loading && !selectedDonutClient && (
+              <Typography align="center">
+                Select a client to view department allowance
+              </Typography>
+            )}
+
+            {!loading && selectedDonutClient && !transformedData && (
+              <Typography align="center">No data Available</Typography>
+            )}
+          </div>
+          </div>
+
+           <div className="pt-4 flex items-center justify-center pb-4">
+            {loading && (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                <CircularProgress />
+              </Box>
+            )}
+
+            {!loading && accountMananer.length > 0 && (
+              <AccountManagersTable
+                data={accountMananer}
+                clickedClient={selectedDonutClient}
+                selectedColor={selectedColor}
+              />
+            )}
+
+            {!loading && accountMananer.length === 0 && (
+              <Typography align="center">No data Available</Typography>
+            )}
+          </div>
+        </div>
       </Box>
     </Box>
   );

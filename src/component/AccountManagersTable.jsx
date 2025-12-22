@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import {
   Box,
@@ -15,7 +15,7 @@ const formatINR = (value) =>
 const parseINR = (value) =>
   !value ? 0 : Number(String(value).replace(/[₹,]/g, ""));
 
-const AccountManagerTable = ({ data = [], clickedClient }) => {
+const AccountManagerTable = ({ data = [], clickedClient, selectedColor }) => {
   const [openMap, setOpenMap] = useState({});
   const [popoverAnchor, setPopoverAnchor] = useState(null);
   const [popoverMessage, setPopoverMessage] = useState("");
@@ -33,11 +33,50 @@ const AccountManagerTable = ({ data = [], clickedClient }) => {
     setPopoverMessage("");
   };
 
+  const managerToClientsMap = useMemo(() => {
+    const map = new Map();
+
+    data.forEach((manager) => {
+      map.set(
+        manager.manager_name,
+        new Set(manager.clients?.map((c) => c.client_name))
+      );
+    });
+
+    return map;
+  }, [data]);
+
+  const getRowClassName = useCallback(
+    (params) => {
+      const row = params.row;
+      if (row.level === 0) {
+        const clientsSet = managerToClientsMap.get(row.name);
+        const belongsToManager =
+          clickedClient && clientsSet?.has(clickedClient);
+
+        return belongsToManager ? "row-manager-selected" : "row-manager";
+      }
+      if (row.level === 1) {
+        return row.name === clickedClient
+          ? "row-client-selected"
+          : "row-client";
+      }
+      if (row.level === 2) {
+        return row.parentKey === clickedClient
+          ? "row-department-selected"
+          : "row-department";
+      }
+
+      return "";
+    },
+    [clickedClient, managerToClientsMap]
+  );
+
   const columns = [
     {
       field: "name",
       headerName: "Name",
-      width: 300,
+      width: 328,
       renderCell: (params) => {
         const { row } = params;
         const paddingLeft = row.level * 6;
@@ -91,14 +130,14 @@ const AccountManagerTable = ({ data = [], clickedClient }) => {
       },
     },
     { field: "headCount", headerName: "Head Count", width: 120 },
-    { field: "shiftA", headerName: "Shift A", width: 150 },
-    { field: "shiftB", headerName: "Shift B", width: 150 },
-    { field: "shiftC", headerName: "Shift C", width: 150 },
-    { field: "shiftPRIME", headerName: "PRIME", width: 150 },
+    { field: "shiftA", headerName: "Shift A", width: 120 },
+    { field: "shiftB", headerName: "Shift B", width: 120 },
+    { field: "shiftC", headerName: "Shift C", width: 120 },
+    { field: "shiftPRIME", headerName: "PRIME", width: 120 },
     {
       field: "totalAllowance",
       headerName: "Total Allowance",
-      width: 180,
+      width:200,
       renderHeader: () => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography fontWeight={700}>Total Allowance</Typography>
@@ -217,7 +256,6 @@ const AccountManagerTable = ({ data = [], clickedClient }) => {
   return (
     <Box
       sx={{
-        height: 600,
         borderRadius: 0,
         overflow: "auto",
         scrollbarWidth: "none",
@@ -229,37 +267,18 @@ const AccountManagerTable = ({ data = [], clickedClient }) => {
       <DataGrid
         rows={rows}
         columns={columns}
+        getRowId={(row) => row.key}
+        getRowClassName={getRowClassName}
+        disableRowSelectionOnClick
         hideFooter
         disableColumnFilter
         disableColumnMenu
         disableColumnSelector
         disableColumnSorting
-        getRowId={(row) => row.key}
-        getRowClassName={(params) => {
-          const row = params.row;
-          if (row.level === 0) {
-            const hasSelectedClient = row.clients?.some(
-              (c) => c.client_name === clickedClient
-            );
-            return hasSelectedClient ? "row-manager-selected" : "row-manager";
-          }
-          if (row.level === 1) {
-            return row.name === clickedClient
-              ? "row-client-selected"
-              : "row-client";
-          }
-          if (row.level === 2) {
-            return row.parentKey === clickedClient
-              ? "row-department-selected"
-              : "row-department";
-          }
-          return "";
-        }}
         sx={{
           border: "none",
-          "& .MuiDataGrid-scrollbar--vertical": {
-            display: "none",
-          },
+
+          /* Header */
           "& .MuiDataGrid-columnHeader": {
             backgroundColor: "#000",
             color: "#fff",
@@ -267,22 +286,49 @@ const AccountManagerTable = ({ data = [], clickedClient }) => {
           "& .MuiDataGrid-columnHeaders": {
             position: "sticky",
             top: 0,
-            zIndex: 1,
           },
-          "& .row-manager": { backgroundColor: "#e9f5ff", fontWeight: 600 },
-          "& .row-client": { backgroundColor: "#f0f4ff" },
-          "& .row-department": { backgroundColor: "#fafafa" },
+          "& .row-manager": {
+            backgroundColor: "#e9f5ff",
+            fontWeight: 600,
+          },
+          "& .row-client": {
+            backgroundColor: "#f0f4ff",
+          },
+          "& .row-department": {
+            backgroundColor: "#fafafa",
+          },
           "& .row-manager-selected": {
-            backgroundColor: "oklch(75% 0.183 55.934)",
+            backgroundColor: `${selectedColor} !important`,
             fontWeight: 700,
           },
+             "& .MuiDataGrid-virtualScroller": {
+      scrollbarWidth: "none",
+      "&::-webkit-scrollbar": {
+        display: "none",
+      },
+    },
           "& .row-client-selected": {
-            backgroundColor: "oklch(87.9% 0.169 91.605)",
+            backgroundColor: `${selectedColor} !important`,
           },
           "& .row-department-selected": {
-            backgroundColor: "oklch(94.5% 0.129 101.54)",
+            backgroundColor: `${selectedColor} !important`,
           },
-          "& .MuiDataGrid-cell": { outline: "none", cursor: "pointer" },
+          "& .MuiDataGrid-row": {
+            transition: "background-color 180ms ease",
+          },
+          "& .MuiDataGrid-row:hover": {
+            backgroundColor: "inherit",
+          },
+          "& .MuiDataGrid-row.Mui-selected": {
+            backgroundColor: "inherit !important",
+          },
+          "& .MuiDataGrid-cell": {
+            outline: "none",
+            cursor: "pointer",
+          },
+          "& .MuiDataGrid-cell:focus": {
+            outline: "none",
+          },
         }}
       />
 
