@@ -74,17 +74,6 @@ const DashboardPage = () => {
 
     let clientsArray = Object.entries(data.dashboard.clients);
 
-    if (topFilter !== "ALL") {
-      clientsArray = clientsArray.slice(0, parseInt(topFilter, 10));
-    }
-
-    if (selectedClients && Object.keys(selectedClients).length > 0) {
-      clientsArray = clientsArray.filter(([client]) =>
-        Object.keys(selectedClients).includes(client)
-      );
-    }
-
-    if (clientsArray.length === 0) return null;
 
     return Object.fromEntries(
       clientsArray.map(([client, clientData]) => [
@@ -759,7 +748,7 @@ const DashboardPage = () => {
         }}
       >
         <div className="flex flex-col gap-4 ">
-          <div className="flex flex-col md:flex-row gap-8 items-center pt-4 justify-evenly">
+          <div className="flex flex-col md:flex-row gap-4 items-center pt-4 justify-evenly">
             <div className="w-full md:max-w-3/5 h-80 rounded-md shadow-sm flex justify-center items-center">
               {/* DonutChart */}
               {loading ? (
@@ -807,7 +796,7 @@ const DashboardPage = () => {
           </div>
 
           <div className="flex flex-row gap-4 justify-evenly w-full">
-            <div className="rounded-md shadow-sm p-4 w-2/5">
+            <div className="rounded-md shadow-sm p-4 w-[50%]">
             {/* HorizontalAllowanceBarChart */}
             {loading && (
               <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -818,6 +807,7 @@ const DashboardPage = () => {
             {!loading && horizontalChartData && (
               <HorizontalAllowanceBarChart
                 chartDataFromParent={horizontalChartData}
+                enums={enums}
               />
             )}
 
@@ -826,7 +816,7 @@ const DashboardPage = () => {
             )}
           </div>
 
-          <div className="shadow-sm p-8 rounded-xl w-2/5">
+          <div className="shadow-sm p-8 rounded-xl w-[50%]">
             {loading && (
               <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
                 <CircularProgress />

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,7 +10,8 @@ import {
 } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { Bar } from "react-chartjs-2";
- 
+import { formatRupeesWithUnit } from "../utils/utils";
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -20,48 +21,60 @@ ChartJS.register(
   Legend,
   ChartDataLabels
 );
- 
-const HorizontalAllowanceBarChart = ({ chartDataFromParent }) => {
+
+const HorizontalAllowanceBarChart = ({ chartDataFromParent, enums }) => {
   const [chartData, setChartData] = useState({
     labels: [],
     datasets: [],
   });
- 
+  const labelToClientMap = useMemo(() => {
+    if (!enums) return {};
+    return Object.entries(enums).reduce((acc, [clientName, enumObj]) => {
+      acc[enumObj.value] = clientName;
+      return acc;
+    }, {});
+  }, [enums]);
+
   useEffect(() => {
-    if (chartDataFromParent) {
-      const labels = Object.keys(chartDataFromParent);
-      const data = Object.values(chartDataFromParent).map(
-        (item) => item.total_allowance
-      );
-      const colors = Object.values(chartDataFromParent).map(
-        (item) => item.color || "#4caf50"
-      );
- 
-      setChartData({
-        labels,
-        datasets: [
-          {
-            label: "Total Allowance",
-            data,
-            backgroundColor: colors,
-            barThickness: 20,  
-            maxBarThickness: 25
-          },
-        ],
-      });
-    }
-  }, [chartDataFromParent]);
- 
+    if (!chartDataFromParent) return;
+
+    const labels = Object.keys(chartDataFromParent).map(
+      (clientName) => enums?.[clientName]?.value || clientName
+    );
+
+    const data = Object.values(chartDataFromParent).map(
+      (item) => item.total_allowance
+    );
+
+    const colors = Object.keys(chartDataFromParent).map(
+      (clientName) => enums?.[clientName]?.hexcode || "#4caf50"
+    );
+
+    setChartData({
+      labels,
+      datasets: [
+        {
+          label: "Total Allowance",
+          data,
+          backgroundColor: colors,
+          barThickness: 20,
+          maxBarThickness: 25,
+        },
+      ],
+    });
+  }, [chartDataFromParent, enums]);
+
   return (
     <Bar
       data={chartData}
+      height={400}
       options={{
         indexAxis: "y",
         responsive: true,
         maintainAspectRatio: false,
-        layout: {
+         layout: {
           padding: {
-            right: 50,
+            right: 70,
           },
         },
         plugins: {
@@ -72,20 +85,22 @@ const HorizontalAllowanceBarChart = ({ chartDataFromParent }) => {
             font: { size: 16, weight: "bold" },
           },
           tooltip: {
+            enabled: true,
             callbacks: {
-              label: function (context) {
-                const client = context.label;
-                const clientData = chartDataFromParent[client];
- 
+              label: (context) => {
+                const label = context.label;
+                const client = labelToClientMap[label] || label;
+                const clientData = chartDataFromParent?.[client];
+
                 if (!clientData) return "";
- 
+
                 return [
                   `Client: ${client}`,
-                  `Total: ₹${clientData.total_allowance.toLocaleString()}`,
-                  `Shift A: ₹${clientData.shift_A?.total?.toLocaleString() || 0}`,
-                  `Shift B: ₹${clientData.shift_B?.total?.toLocaleString() || 0}`,
-                  `Shift C: ₹${clientData.shift_C?.total?.toLocaleString() || 0}`,
-                  `Shift PRIME: ₹${clientData.shift_PRIME?.total?.toLocaleString() || 0}`,
+                  `Total Allowance:   ${formatRupeesWithUnit(clientData.total_allowance)||0}`,
+                  `Shift A: ${formatRupeesWithUnit(clientData.shift_A?.total)||0}`,
+                  `Shift B: ${formatRupeesWithUnit(clientData.shift_B?.total)||0}`,
+                  `Shift C: ${formatRupeesWithUnit(clientData.shift_C?.total) || 0}`,
+                  `Shift PRIME: ${formatRupeesWithUnit(clientData.shift_PRIME?.total) || 0}`,
                 ];
               },
             },
@@ -94,7 +109,7 @@ const HorizontalAllowanceBarChart = ({ chartDataFromParent }) => {
             anchor: "end",
             align: "end",
             offset: 10,
-            formatter: (value) => `₹${value.toLocaleString()}`,
+            formatter: (value) => `${formatRupeesWithUnit(value)}`,
             font: { weight: "bold", size: 12 },
             color: "#000",
           },
@@ -102,32 +117,17 @@ const HorizontalAllowanceBarChart = ({ chartDataFromParent }) => {
         scales: {
           x: {
             beginAtZero: true,
-            title: {
-              display: true,
-              text: "Total Allowance",
-              font: { size: 14, weight: "bold" },
-            },
             ticks: {
-              callback: function (value) {
-                return "₹" + value.toLocaleString();
-              },
+              callback: (value) => formatRupeesWithUnit(value),
             },
           },
           y: {
-            title: {
-              display: true,
-              text: "Clients",
-              font: { size: 14, weight: "bold" },
-            },
             ticks: { autoSkip: false },
           },
         },
       }}
-      height={400}
     />
   );
 };
- 
+
 export default HorizontalAllowanceBarChart;
- 
- 

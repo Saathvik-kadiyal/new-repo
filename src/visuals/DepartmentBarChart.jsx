@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Tooltip from "../component/Tooltip";
-import { getColor, shadeColor } from "../utils/utils";
+import { formatRupeesWithUnit, getColor, shadeColor } from "../utils/utils";
 
 export default function DepartmentBarChart({
   clientName = "",
@@ -83,7 +83,7 @@ export default function DepartmentBarChart({
                   y={25}
                   fontSize={11}
                 >
-                  ₹{b.total_allowance.toLocaleString("en-IN")}
+                  {formatRupeesWithUnit(b.total_allowance)}
                 </text>
               </g>
             );
@@ -99,7 +99,7 @@ export default function DepartmentBarChart({
             <hr />
             {["shift_A", "shift_B", "shift_C", "shift_PRIME"].map((s) => (
               <div key={s}>
-                {s}: ₹{hover[s].total} (HC {hover[s].head_count})
+                {s}: {formatRupeesWithUnit(hover[s].total)} (HC {hover[s].head_count})
               </div>
             ))}
           </>

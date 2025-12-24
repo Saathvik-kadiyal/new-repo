@@ -43,3 +43,44 @@ export function shadeColor(color, percent) {
     (B<255?B<1?0:B:255)
   ).toString(16).slice(1)}`;
 }
+
+
+export function formatRupees(amount) {
+  if (amount == null || isNaN(amount)) return "₹0";
+
+  const abs = Math.abs(amount);
+
+  if (abs >= 1_00_00_000) {
+    return `₹${(amount / 1_00_00_000).toFixed(2)} Cr`;
+  }
+
+  if (abs >= 1_00_000) {
+    return `₹${(amount / 1_00_000).toFixed(2)} L`;
+  }
+
+  if (abs >= 1_000) {
+    return `₹${(amount / 1_000).toFixed(2)} K`;
+  }
+
+  return `₹${amount.toLocaleString("en-IN")}`;
+}
+
+
+
+export function formatRupeesWithUnit(amount, unit = "auto") {
+  if (amount == null || isNaN(amount)) return "₹0";
+
+  const units = {
+    K: 1_000,
+    L: 1_00_000,
+    Cr: 1_00_00_000,
+  };
+
+  if (unit === "auto") return formatRupees(amount);
+
+  const divisor = units[unit];
+  if (!divisor) return `₹${amount}`;
+
+  return `₹${(amount / divisor).toFixed(2)} ${unit}`;
+}
+

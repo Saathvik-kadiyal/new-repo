@@ -1,27 +1,38 @@
 import { useState, useEffect, useRef } from "react";
-import { getColor, describeArc, polarToCartesian } from "../utils/utils";
+import {
+  getColor,
+  describeArc,
+  polarToCartesian,
+  formatRupeesWithUnit,
+} from "../utils/utils";
 import Tooltip from "../component/Tooltip";
 
-export default function DonutChart({ clients, onSelectClient, onSelectColor,clientColors,setClientColors,enums }) {
+export default function DonutChart({
+  clients,
+  onSelectClient,
+  onSelectColor,
+  clientColors,
+  setClientColors,
+  enums,
+}) {
   const containerRef = useRef(null);
   const [size, setSize] = useState(320);
   const [hover, setHover] = useState(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [centerClient, setCenterClient] = useState("");
 
-const getClientColor = (clientName, index) => {
-  return enums[clientName]?.hexcode ?? getColor(index);
-};
+  const getClientColor = (clientName, index) => {
+    return enums[clientName]?.hexcode ?? getColor(index);
+  };
 
-const getClientLabel = (clientName) => {
-  return enums[clientName]?.value ?? clientName;
-};
-
+  const getClientLabel = (clientName) => {
+    return enums[clientName]?.value ?? clientName;
+  };
 
   const selectClient = (name, index) => {
     setCenterClient(name);
     onSelectClient(name);
-    onSelectColor(getClientColor(name,index));
+    onSelectColor(getClientColor(name, index));
   };
 
   useEffect(() => {
@@ -186,7 +197,7 @@ const getClientLabel = (clientName) => {
                       className="font-normal"
                       fontSize={14}
                     >
-                      ₹{client.total_allowance.toLocaleString("en-IN")}
+                      {formatRupeesWithUnit(client.total_allowance)}
                     </tspan>
                     <tspan
                       x="0"
@@ -194,7 +205,7 @@ const getClientLabel = (clientName) => {
                       className="font-normal "
                       fontSize={14}
                     >
-                      HeadCount - ₹{client.head_count.toLocaleString("en-IN")}
+                      HeadCount - {client.head_count}{" "}
                     </tspan>
                     <tspan
                       x="0"
@@ -202,7 +213,7 @@ const getClientLabel = (clientName) => {
                       className="font-normal"
                       fontSize={14}
                     >
-                      Shift A - ₹{client.shift_A.total.toLocaleString("en-IN")}
+                      Shift A - {formatRupeesWithUnit(client.shift_A.total)}
                     </tspan>
                     <tspan
                       x="0"
@@ -210,7 +221,7 @@ const getClientLabel = (clientName) => {
                       className="font-normal"
                       fontSize={14}
                     >
-                      Shift B - ₹{client.shift_B.total.toLocaleString("en-IN")}
+                      Shift B - {formatRupeesWithUnit(client.shift_B.total)}
                     </tspan>
                     <tspan
                       x="0"
@@ -218,7 +229,7 @@ const getClientLabel = (clientName) => {
                       className="font-normal"
                       fontSize={14}
                     >
-                      Shift C - ₹{client.shift_C.total.toLocaleString("en-IN")}
+                      Shift C - {formatRupeesWithUnit(client.shift_C.total)}
                     </tspan>
                     <tspan
                       x="0"
@@ -226,8 +237,8 @@ const getClientLabel = (clientName) => {
                       className="font-normal"
                       fontSize={14}
                     >
-                      Shift PRIME - ₹
-                      {client.shift_PRIME.total.toLocaleString("en-IN")}
+                      Shift PRIME -
+                      {formatRupeesWithUnit(client.shift_PRIME.total)}
                     </tspan>
                   </tspan>
                 ))
@@ -242,7 +253,7 @@ const getClientLabel = (clientName) => {
         {hover && (
           <>
             <strong>{hover.name}</strong>
-            <div>₹ {hover.client.total_allowance.toLocaleString()}</div>
+            <div>₹ {formatRupeesWithUnit(hover.client.total_allowance)}</div>
             <div>HC: {hover.client.head_count}</div>
           </>
         )}

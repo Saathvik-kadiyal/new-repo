@@ -9,6 +9,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import { ChevronDown, EllipsisVertical, Info } from "lucide-react";
+import { formatRupeesWithUnit } from "../utils/utils";
 
 const formatINR = (value) =>
   value == null ? "" : `₹${Number(value).toLocaleString("en-IN")}`;
@@ -138,49 +139,49 @@ const AccountManagerTable = ({ data = [], clickedClient, selectedColor }) => {
       field: "totalAllowance",
       headerName: "Total Allowance",
       width:200,
-      renderHeader: () => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography fontWeight={700}>Total Allowance</Typography>
-          <IconButton
-            size="small"
-            sx={{ color: "#fff" }}
-            onClick={(e) => setSortAnchor(e.currentTarget)}
-          >
-            <EllipsisVertical color="white" fontSize="small" />
-          </IconButton>
+      // renderHeader: () => (
+      //   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      //     <Typography fontWeight={700}>Total Allowance</Typography>
+      //     <IconButton
+      //       size="small"
+      //       sx={{ color: "#fff" }}
+      //       onClick={(e) => setSortAnchor(e.currentTarget)}
+      //     >
+      //       <EllipsisVertical color="white" fontSize="small" />
+      //     </IconButton>
 
-          <Menu
-            anchorEl={sortAnchor}
-            open={Boolean(sortAnchor)}
-            onClose={() => setSortAnchor(null)}
-          >
-            <MenuItem
-              onClick={() => {
-                setSortOrder("desc");
-                setSortAnchor(null);
-              }}
-            >
-              High → Low
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                setSortOrder("asc");
-                setSortAnchor(null);
-              }}
-            >
-              Low → High
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                setSortOrder(null);
-                setSortAnchor(null);
-              }}
-            >
-              Clear Sort
-            </MenuItem>
-          </Menu>
-        </Box>
-      ),
+      //     <Menu
+      //       anchorEl={sortAnchor}
+      //       open={Boolean(sortAnchor)}
+      //       onClose={() => setSortAnchor(null)}
+      //     >
+      //       <MenuItem
+      //         onClick={() => {
+      //           setSortOrder("desc");
+      //           setSortAnchor(null);
+      //         }}
+      //       >
+      //         High → Low
+      //       </MenuItem>
+      //       <MenuItem
+      //         onClick={() => {
+      //           setSortOrder("asc");
+      //           setSortAnchor(null);
+      //         }}
+      //       >
+      //         Low → High
+      //       </MenuItem>
+      //       <MenuItem
+      //         onClick={() => {
+      //           setSortOrder(null);
+      //           setSortAnchor(null);
+      //         }}
+      //       >
+      //         Clear Sort
+      //       </MenuItem>
+      //     </Menu>
+      //   </Box>
+      // ),
     },
   ];
 
@@ -195,11 +196,11 @@ const AccountManagerTable = ({ data = [], clickedClient, selectedColor }) => {
         name: manager.manager_name,
         level: 0,
         headCount: manager.head_count,
-        shiftA: formatINR(manager.shifts.shift_A.total),
-        shiftB: formatINR(manager.shifts.shift_B.total),
-        shiftC: formatINR(manager.shifts.shift_C.total),
-        shiftPRIME: formatINR(manager.shifts.shift_PRIME.total),
-        totalAllowance: formatINR(manager.total_allowance),
+        shiftA: formatRupeesWithUnit(manager.shifts.shift_A.total),
+        shiftB: formatRupeesWithUnit(manager.shifts.shift_B.total),
+        shiftC: formatRupeesWithUnit(manager.shifts.shift_C.total),
+        shiftPRIME: formatRupeesWithUnit(manager.shifts.shift_PRIME.total),
+        totalAllowance: formatRupeesWithUnit(manager.total_allowance),
         clients: manager.clients,
       });
 
@@ -212,11 +213,11 @@ const AccountManagerTable = ({ data = [], clickedClient, selectedColor }) => {
             name: client.client_name,
             level: 1,
             headCount: client.head_count,
-            shiftA: formatINR(client.shifts.shift_A.total),
-            shiftB: formatINR(client.shifts.shift_B.total),
-            shiftC: formatINR(client.shifts.shift_C.total),
-            shiftPRIME: formatINR(client.shifts.shift_PRIME.total),
-            totalAllowance: formatINR(client.total_allowance),
+            shiftA: formatRupeesWithUnit(client.shifts.shift_A.total),
+            shiftB: formatRupeesWithUnit(client.shifts.shift_B.total),
+            shiftC: formatRupeesWithUnit(client.shifts.shift_C.total),
+            shiftPRIME: formatRupeesWithUnit(client.shifts.shift_PRIME.total),
+            totalAllowance: formatRupeesWithUnit(client.total_allowance),
             parentKey: managerKey,
           });
 
@@ -229,11 +230,11 @@ const AccountManagerTable = ({ data = [], clickedClient, selectedColor }) => {
                 name: dept.department_name,
                 level: 2,
                 headCount: dept.head_count,
-                shiftA: formatINR(dept.shifts.shift_A.total),
-                shiftB: formatINR(dept.shifts.shift_B.total),
-                shiftC: formatINR(dept.shifts.shift_C.total),
-                shiftPRIME: formatINR(dept.shifts.shift_PRIME.total),
-                totalAllowance: formatINR(dept.total_allowance),
+                shiftA: formatRupeesWithUnit(dept.shifts.shift_A.total),
+                shiftB: formatRupeesWithUnit(dept.shifts.shift_B.total),
+                shiftC: formatRupeesWithUnit(dept.shifts.shift_C.total),
+                shiftPRIME: formatRupeesWithUnit(dept.shifts.shift_PRIME.total),
+                totalAllowance: formatRupeesWithUnit(dept.total_allowance),
                 parentKey: client.client_name,
               });
             });
@@ -277,8 +278,6 @@ const AccountManagerTable = ({ data = [], clickedClient, selectedColor }) => {
         disableColumnSorting
         sx={{
           border: "none",
-
-          /* Header */
           "& .MuiDataGrid-columnHeader": {
             backgroundColor: "#000",
             color: "#fff",
