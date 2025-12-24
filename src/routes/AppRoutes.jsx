@@ -55,7 +55,7 @@ const AppRoutes = () => {
             </Suspense>
           }
         /> 
-        {/* ✅ EDIT PAGE ROUTE (MOVE HERE) */}
+       
         <Route
           path="shift-allowance/edit"
           element={

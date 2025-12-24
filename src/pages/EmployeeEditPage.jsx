@@ -18,12 +18,11 @@ import {
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
-
-
-import CloseIcon from "@mui/icons-material/Close";
+// import { Pen } from "lucide-react";
+// import CloseIcon from "@mui/icons-material/Close";
+import { Pen, X } from "lucide-react";
 import * as XLSX from "xlsx";
-import { correctEmployeeRows, toBackendMonthFormat } from "../utils/helper";
+import { correctEmployeeRows } from "../utils/helper";
 
 const BACKEND_TO_FRONTEND = {
   emp_id: "EMP ID",
@@ -41,76 +40,90 @@ const isHiddenField = (key) => HIDDEN_FIELDS.includes(key);
 const EmployeeEditPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
+
   const [errorRows, setErrorRows] = useState(state?.errorRows || []);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [saveSuccess, setSaveSuccess] = useState("");
-
+  const [editedFields, setEditedFields] = useState({});
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
+  const [popupType, setPopupType] = useState("success");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [saveError, setSaveError] = useState("");
 
+  const TEXT_FIELDS = ["payroll_month", "duration_month"];
+
+  const isFieldInvalid = (field, value) => {
+    if (selectedEmployee?.reason?.[field]) return true;
+    if (value === "" || value === undefined) return true;
+    if (TEXT_FIELDS.includes(field)) return false;
+    return isNaN(Number(value)) || Number(value) < 0;
+  };
+
+  
   useEffect(() => {
     if (selectedEmployee) {
-      console.log("Selected employee reason fields:", selectedEmployee.reason);
+      const fieldsToEdit = {};
+      Object.keys(selectedEmployee).forEach((key) => {
+        if (!isHiddenField(key)) {
+          fieldsToEdit[key] = selectedEmployee[key];
+        }
+      });
+      setEditedFields(fieldsToEdit);
+      setSaveError("");
+    } else {
+      setEditedFields({});
     }
   }, [selectedEmployee]);
+
   const handleSave = async () => {
     if (!selectedEmployee) return;
 
     const token = localStorage.getItem("access_token");
     if (!token) {
-      setSaveSuccess("You are not authenticated. Please login again.");
+      setPopupMessage("You are not authenticated. Please login again.");
+      setPopupType("error");
+      setPopupOpen(true);
       return;
     }
 
     try {
-      const correctedRow = { ...selectedEmployee };
+      const correctedRow = { ...selectedEmployee, ...editedFields };
+      delete correctedRow.reason;
 
       console.log("Corrected Row being sent to API:", correctedRow);
 
       const data = await correctEmployeeRows(token, [correctedRow]);
-
       console.log("API Response:", data);
 
-
       if (data?.message) {
-        setSaveSuccess(`EMP ID: ${correctedRow.emp_id} saved successfully ✅`);
+        setPopupMessage(`EMP ID: ${correctedRow.emp_id} saved successfully`);
+        setPopupType("success");
+        setPopupOpen(true);
 
         const updatedErrors = errorRows.filter(
           (r) => r.emp_id !== correctedRow.emp_id
         );
-
         setErrorRows(updatedErrors);
-        setSelectedEmployee(null);
 
-        return;
+        setTimeout(() => setSelectedEmployee(null), 1000);
+        setSaveError("");
       }
-
     } catch (err) {
       console.error("Save error caught:", err);
-
       const errorMsg =
-        err?.detail?.failed_rows?.[0]?.reason ||
-        err?.message ||
-        "Unknown";
-
-      setSaveSuccess(
-        `Failed to save EMP ID: ${selectedEmployee.emp_id} - ${errorMsg}`
-      );
+        err?.detail?.failed_rows?.[0]?.reason || err?.message || "Unknown error";
+      setSaveError(`Failed to save EMP ID: ${selectedEmployee.emp_id} - ${errorMsg}`);
     }
-
-    setTimeout(() => setSaveSuccess(""), 5000);
   };
-
 
   const handleDownloadErrorRows = () => {
     if (!errorRows || errorRows.length === 0) return;
 
     const cleanedRows = errorRows.map(({ reason, ...rest }) => rest);
-
     const worksheet = XLSX.utils.json_to_sheet(cleanedRows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Error Rows");
-
     XLSX.writeFile(workbook, "Remaining_Error_Rows.xlsx");
   };
 
@@ -121,22 +134,60 @@ const EmployeeEditPage = () => {
     setPage(0);
   };
 
+  const isSaveDisabled = selectedEmployee
+    ? Object.keys(selectedEmployee.reason || {}).some((field) => {
+        const value = editedFields[field];
+        if (value === "" || value === undefined) return true;
+        if (TEXT_FIELDS.includes(field)) return false;
+        return isNaN(Number(value)) || Number(value) < 0;
+      })
+    : true;
+
   return (
     <Box sx={{ p: 4 }}>
-      {/* Breadcrumb */}
-      <Box sx={{ mb: 2 }}>
-        <Breadcrumbs>
-          <Link
-            underline="hover"
-            color="inherit"
-            sx={{ cursor: "pointer" }}
-            onClick={() => navigate("/shift-allowance")}
-          >
-            Shift Allowance
-          </Link>
-          <Typography color="text.primary">Error Records</Typography>
-        </Breadcrumbs>
-      </Box>
+
+
+      <Box
+  sx={{
+    mb: 2,
+    border: "1px solid #d1d5db", 
+    borderRadius: 1.5,           
+    backgroundColor: "#ffffff",  
+    p: "6px 12px",                
+    display: "inline-flex",       
+  }}
+>
+  <Breadcrumbs
+    separator="›"
+    sx={{
+      fontSize: 14,
+      fontWeight: 500,
+      color: "#374151",            
+      "& a": {
+        color: "#1d4ed8",          
+        textDecoration: "none",
+        "&:hover": {
+          textDecoration: "underline",
+        },
+      },
+      "& .MuiTypography-root": {
+        fontWeight: 700,           
+        color: "#111827",          
+      },
+    }}
+  >
+    <Link
+      underline="hover"
+      color="inherit"
+      sx={{ cursor: "pointer" }}
+      onClick={() => navigate("/shift-allowance")}
+    >
+      Shift Allowance
+    </Link>
+    <Typography color="text.primary">Error Records</Typography>
+  </Breadcrumbs>
+</Box>
+
 
       {/* Header */}
       <Box
@@ -150,7 +201,6 @@ const EmployeeEditPage = () => {
         <Typography variant="h5" fontWeight="bold">
           Error Records
         </Typography>
-
         <Button
           variant="outlined"
           onClick={handleDownloadErrorRows}
@@ -190,7 +240,7 @@ const EmployeeEditPage = () => {
               <TableRow>
                 <TableCell colSpan={10} align="center">
                   <Typography color="success.main" fontWeight="bold">
-                    All rows successfully edited ✅
+                    All rows successfully edited
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -198,7 +248,15 @@ const EmployeeEditPage = () => {
               errorRows
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((row, idx) => (
-                  <TableRow key={idx} hover>
+                  <TableRow
+                    key={idx}
+                    hover
+                    sx={{
+                      "& td": {
+                        backgroundColor: "inherit",
+                      },
+                    }}
+                  >
                     {Object.keys(row)
                       .filter((key) => !isHiddenField(key))
                       .map((key) => (
@@ -206,33 +264,36 @@ const EmployeeEditPage = () => {
                           key={key}
                           sx={{
                             border: "1px solid #ddd",
-                            borderColor: row.reason && row.reason[key] ? "red" : "#ddd", 
-                            color: row.reason && row.reason[key] ? "red" : "inherit", 
-                            fontWeight: row.reason && row.reason[key] ? "bold" : "normal",
-                            backgroundColor: row.reason && row.reason[key] ? "rgba(255, 0, 0, 0.1)" : "inherit", 
-                            // borderRadius: "4px", 
+                            borderColor:
+                              row.reason && row.reason[key] ? "red" : "#ddd",
+                            color: row.reason && row.reason[key] ? "red" : "inherit",
+                            fontWeight:
+                              row.reason && row.reason[key] ? "bold" : "normal",
+                            backgroundColor:
+                              row.reason && row.reason[key]
+                                ? "rgba(255, 0, 0, 0.1)"
+                                : "inherit",
                           }}
                         >
                           {row[key] ?? "-"}
                         </TableCell>
                       ))}
                     <TableCell>
-
                       <IconButton
                         onClick={() => {
-                          setSelectedEmployee(row); 
-                          setSaveSuccess("");        
+                          setSelectedEmployee(row);
+                          setPopupMessage("");
+                          setPopupOpen(false);
+                          setSaveError("");
                         }}
                       >
-                        <PushPinOutlinedIcon />
+                        <Pen size={20} />
                       </IconButton>
-
                     </TableCell>
                   </TableRow>
                 ))
             )}
           </TableBody>
-
         </Table>
       </TableContainer>
 
@@ -246,9 +307,10 @@ const EmployeeEditPage = () => {
         rowsPerPageOptions={[5, 10, 25]}
       />
 
-      {/* Modal */}
+      {/* Modal for editing employee */}
       <Modal
         open={!!selectedEmployee}
+        onClose={() => setSelectedEmployee(null)}
         BackdropProps={{
           style: { backgroundColor: "rgba(0,0,0,0.5)" },
           onClick: (e) => e.stopPropagation(),
@@ -270,14 +332,25 @@ const EmployeeEditPage = () => {
             <Typography variant="h6" fontWeight="bold">
               Employee Details – EMP ID: {selectedEmployee?.emp_id}
             </Typography>
-            <IconButton
+            {/* <IconButton
               onClick={() => {
                 setSelectedEmployee(null);
-                setSaveSuccess("");
+                setPopupMessage("");
+                setPopupOpen(false);
               }}
             >
               <CloseIcon />
-            </IconButton>
+            </IconButton> */}
+
+            <IconButton
+  onClick={() => {
+    setSelectedEmployee(null);
+    setPopupMessage("");
+    setPopupOpen(false);
+  }}
+>
+  <X size={20} />
+</IconButton>
 
           </Box>
 
@@ -285,10 +358,12 @@ const EmployeeEditPage = () => {
             Edit Error Fields
           </Typography>
 
+          {/* Display non-error fields */}
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 2 }}>
             {selectedEmployee &&
               Object.entries(selectedEmployee).map(([key, value]) => {
-                if (isHiddenField(key) || key in selectedEmployee.reason) return null;
+                if (isHiddenField(key) || key in selectedEmployee.reason)
+                  return null;
                 return (
                   <Paper key={key} sx={{ p: 2, flex: "1 1 calc(45% - 12px)" }}>
                     <Typography fontWeight="bold">
@@ -300,6 +375,7 @@ const EmployeeEditPage = () => {
               })}
           </Box>
 
+          {/* Display error fields for editing */}
           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
             {selectedEmployee &&
               Object.keys(selectedEmployee.reason || {}).map((field) => (
@@ -310,44 +386,119 @@ const EmployeeEditPage = () => {
                   <TextField
                     fullWidth
                     size="small"
-                    value={selectedEmployee[field] ?? ""}
+                    type={TEXT_FIELDS.includes(field) ? "text" : "number"}
+                    inputProps={TEXT_FIELDS.includes(field) ? {} : { min: 0 }}
+                    value={editedFields[field] ?? ""}
                     onChange={(e) => {
-                      setSelectedEmployee((prev) => ({
-                        ...prev,
-                        [field]: e.target.value,
-                      }))
-                    }
-                    }
-                    error={Boolean(selectedEmployee.reason[field])}
-                    helperText={selectedEmployee.reason[field]}
+                      const value = e.target.value;
+                      setEditedFields((prev) => ({ ...prev, [field]: value }));
+
+                      let isValid = false;
+                      if (TEXT_FIELDS.includes(field)) {
+                        isValid = value.trim() !== "";
+                      } else {
+                        const num = Number(value);
+                        isValid = !isNaN(num) && num >= 0;
+                      }
+
+                      if (isValid && selectedEmployee?.reason?.[field]) {
+                        setSelectedEmployee((prev) => ({
+                          ...prev,
+                          reason: { ...prev.reason, [field]: undefined },
+                        }));
+                      }
+                    }}
+                    error={!!selectedEmployee?.reason?.[field]}
+                    helperText={selectedEmployee?.reason?.[field] || ""}
                   />
                 </Paper>
               ))}
           </Box>
 
-          <Box mt={3} display="flex" gap={2}>
-            <Button variant="contained" onClick={handleSave}>
-              Save
-            </Button>
-            <Button variant="outlined" onClick={() => setSelectedEmployee(null)}>
-              Back
-            </Button>
-          </Box>
+          <Box mt={3} display="flex" flexDirection="column" gap={1}>
+            <Box display="flex" gap={2}>
+              <Button
+                variant="contained"
+                onClick={handleSave}
+                disabled={isSaveDisabled}
+              >
+                Save
+              </Button>
+              <Button variant="outlined" onClick={() => setSelectedEmployee(null)}>
+                Back
+              </Button>
+            </Box>
 
-          {saveSuccess && (
-            <Typography
-              mt={1}
-              color={saveSuccess.includes("successfully") ? "success.main" : "error"}
-            >
-              {saveSuccess}
-            </Typography>
-          )}
+            {/* Error message below Save button */}
+            {saveError && (
+              <Typography color="error" variant="body2">
+                {saveError}
+              </Typography>
+            )}
+          </Box>
+        </Paper>
+      </Modal>
+
+      {/* Popup modal for success messages */}
+      <Modal
+        open={popupOpen}
+        onClose={() => setPopupOpen(false)}
+        BackdropProps={{ style: { backgroundColor: "rgba(0,0,0,0.3)" } }}
+        aria-labelledby="popup-message"
+        aria-describedby="popup-description"
+      >
+        <Paper
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            p: 4,
+            width: { xs: "80%", sm: 400 },
+            textAlign: "center",
+            borderRadius: 2,
+            maxHeight: "70vh",
+            overflowY: "auto",
+
+            border: popupType === "success"
+      ? "2px solid #16a34a"   // green
+      : "2px solid #dc2626",  // red
+
+    
+    boxShadow:
+      popupType === "success"
+        ? "0 0 10px rgba(22,163,74,0.4)"
+        : "0 0 10px rgba(220,38,38,0.4)",
+
+          }}
+        >
+          <Typography
+            id="popup-message"
+            sx={{
+              color: popupType === "success" ? "green" : "red",
+              fontWeight: "bold",
+              mb: 2,
+              wordBreak: "break-word",
+            }}
+            variant="h6"
+          >
+            {popupMessage}
+          </Typography>
+          <Button
+            variant="contained"
+            onClick={() => setPopupOpen(false)}
+            sx={{
+              mt: 1,
+              backgroundColor: "#1E3A8A",
+              "&:hover": { backgroundColor: "#17326c" },
+            }}
+          >
+            Close
+          </Button>
         </Paper>
       </Modal>
     </Box>
   );
-}
+};
 
 export default EmployeeEditPage;
-
-

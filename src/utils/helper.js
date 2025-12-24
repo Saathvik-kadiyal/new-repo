@@ -2,6 +2,9 @@ import axios from "axios";
 import dayjs from "dayjs";
 const backendApi = import.meta.env.VITE_BACKEND_API;
 
+
+
+
 export const debounce = (fn, delay) => {
   let timer; 
   return (...args) => {
@@ -13,7 +16,7 @@ export const debounce = (fn, delay) => {
 export const fetchEmployees = async ({
   token,
   start = 0,
-  limit = 10,
+  limit = 0,
   params = {},  
 }) => {
   if (!token) throw new Error("Not authenticated");
@@ -27,7 +30,7 @@ export const fetchEmployees = async ({
     requestParams = { start, limit };
   } else {
     url = `${backendApi}/employee-details/search`;
-    requestParams = { ...params,start,limit};
+    requestParams = { ...params};
   }
 
   const response = await axios.get(url, {
@@ -60,7 +63,6 @@ export const fetchEmployeeDetail = async (token,emp_id,duration_month,payroll_mo
     headers: { Authorization: `Bearer ${token}` },
       params: payload, 
   });
-  console.log("backedn",response)
   return response.data;
 
 };
@@ -269,102 +271,6 @@ export const toFrontendMonthFormat = (monthStr) => {
 };
 
 
-// export const correctEmployeeRows = async (token, correctedRows) => {
-//   if (!token) throw new Error("Not authenticated");
-
-//   try {
-//     const response = await axios.post(
-//       // `${backendApi}/upload/correct`,
-//       `${backendApi}/upload/correct_error_rows`,
-//       { corrected_rows: correctedRows },
-//       {
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: `Bearer ${token}`,
-//         },
-//       }
-//     );
-
-//     return response.data;
-//   } catch (err) {
-//     if (err.response) {
-//       console.error("Backend error:", err.response.data);
-//       throw new Error(err.response.data?.detail || "Correction failed");
-//     } else if (err.request) {
-//       throw new Error("No response from server.");
-//     } else {
-//       throw new Error(err.message);
-//     }
-//   }
-// };
-
-// export const correctEmployeeRows = async (token, correctedRows) => {
-//   if (!token) throw new Error("Not authenticated");
-
-//   const sanitizedRows = correctedRows.map(({ reason, ...row }) => ({
-//   ...row,
-
-
-//   shift_a_days: Number(row.shift_a_days) || 0,
-//   shift_b_days: Number(row.shift_b_days) || 0,
-//   shift_c_days: Number(row.shift_c_days) || 0,
-//   prime_days: Number(row.prime_days) || 0,
-
-//   "# Shift Types(e)": Number(row["# Shift Types(e)"]) || 0,
-//   total_days: Number(row.total_days) || 0,
-
-//   "Timesheet Billable Days": Number(row["Timesheet Billable Days"]) || 0,
-//   "Timesheet Non Billable Days": Number(row["Timesheet Non Billable Days"]) || 0,
-
-//   Diff: Number(row.Diff) || 0,
-//   "Final Total Days": Number(row["Final Total Days"]) || 0,
-
-//   "Shift A Allowances": Number(row["Shift A Allowances"]) || 0,
-//   "Shift B Allowances": Number(row["Shift B Allowances"]) || 0,
-//   "Shift C Allowances": Number(row["Shift C Allowances"]) || 0,
-//   "Prime Allowances": Number(row["Prime Allowances"]) || 0,
-//   "TOTAL DAYS Allowances": Number(row["TOTAL DAYS Allowances"]) || 0,
-
-//   "AM Approval Status(e)": Number(row["AM Approval Status(e)"]) || 0,
-
-//   rmg_comments:
-//     row.rmg_comments === 0 || row.rmg_comments === null
-//       ? ""
-//       : String(row.rmg_comments),
-
-//   practice_remarks:
-//     row.practice_remarks === 0 || row.practice_remarks === null
-//       ? ""
-//       : String(row.practice_remarks),
-
-//   delivery_manager:
-//     row.delivery_manager === 0 || row.delivery_manager === null
-//       ? ""
-//       : String(row.delivery_manager),
-// }));
-
-
-//   try {
-//     const response = await axios.post(
-//       `${backendApi}/upload/correct_error_rows`,
-//       { corrected_rows: sanitizedRows },
-//       {
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: `Bearer ${token}`,
-//         },
-//       }
-//     );
-
-//     return response.data;
-//   } catch (err) {
-//     if (err.response) {
-//       console.error("Backend error:", err.response.data);
-//       throw new Error(JSON.stringify(err.response.data));
-//     }
-//     throw err;
-//   }
-// };
 
 
 export const correctEmployeeRows = async (token, correctedRows) => {
@@ -474,6 +380,50 @@ export const fetchClientSummary = async (
     );
   }
 };
+ 
+export const fetchEmployeesByMonthRange = async (token, startMonth, endMonth) => {
+  if (!token) throw new Error("Not authenticated");
+
+  const url = `${backendApi}/monthly/search`;
+
+  try {
+    const response = await axios.get(url, {
+      params: { start_month: startMonth, end_month: endMonth },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    console.log("Month range response:", response.data)
+    if (!Array.isArray(response.data) || response.data.length === 0) {
+      return [];
+    }
+
+    return response.data;
+  } catch (err) {
+    console.error(err);
+    if (err?.response?.data?.detail) {
+      throw new Error(err.response.data.detail);
+    }
+    throw new Error(`No data found for month range ${startMonth} to ${endMonth}`);
+  }
+};
+
+export const downloadClientSummary = async (payload) => {
+  const token = localStorage.getItem("access_token");
+  if (!token) throw new Error("Not authenticated");
+
+  const response = await axios.post(
+    `${backendApi}/client-summary/download`,
+    payload,
+    {
+      responseType: "blob", 
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return response.data; // this is a Blob
+};
 
  
 // export const fetchClientSummaryRange = async (token, startMonth, endMonth) => {
@@ -539,34 +489,60 @@ export const fetchClientSummary = async (
 //   }
 // };
  
- 
-
-
-export const fetchEmployeesByMonthRange = async (token, startMonth, endMonth) => {
+export const fetchDashboardClientSummary = async (
+  payload
+) => {
+  const token = localStorage.getItem("access_token");
   if (!token) throw new Error("Not authenticated");
 
-  const url = `${backendApi}/monthly/search`;
-
   try {
-    const response = await axios.get(url, {
-      params: { start_month: startMonth, end_month: endMonth },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    console.log("Month range response:", response.data)
-    if (!Array.isArray(response.data) || response.data.length === 0) {
-      return [];
-    }
-
+    const response = await axios.post(
+      `${backendApi}/dashboard/client-allowance-summary`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
     return response.data;
   } catch (err) {
-    console.error(err);
-    if (err?.response?.data?.detail) {
-      throw new Error(err.response.data.detail);
-    }
-    throw new Error(`No data found for month range ${startMonth} to ${endMonth}`);
+    throw new Error(
+      err?.response?.data?.detail ||
+      err?.message ||
+      "Unable to fetch summary data."
+    );
   }
 };
+
+
+
+// export const fetchEmployeesByMonthRange = async (token, startMonth, endMonth) => {
+//   if (!token) throw new Error("Not authenticated");
+
+//   const url = `${backendApi}/monthly/search`;
+
+//   try {
+//     const response = await axios.get(url, {
+//       params: { start_month: startMonth, end_month: endMonth },
+//       headers: { Authorization: `Bearer ${token}` },
+//     });
+
+//     console.log("Month range response:", response.data)
+//     if (!Array.isArray(response.data) || response.data.length === 0) {
+//       return [];
+//     }
+
+//     return response.data;
+//   } catch (err) {
+//     console.error(err);
+//     if (err?.response?.data?.detail) {
+//       throw new Error(err.response.data.detail);
+//     }
+//     throw new Error(`No data found for month range ${startMonth} to ${endMonth}`);
+//   }
+// };
 
 
 export const fetchHorizontalBarData = async (month) => {
@@ -580,7 +556,18 @@ export const fetchHorizontalBarData = async (month) => {
     return {};
   }
 };
-
+export const fetchClientDepartments = async () => {
+  const token = localStorage.getItem("access_token");
+  try {
+    const reponse = await axios.get(`${backendApi}/client-departments`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    return reponse.data;
+  } catch (error) {
+    return error
+  }
+}; 
 
 export const fetchClientComparison = async (
   searchBy = "",

@@ -9,8 +9,9 @@ import {
   Paper,
   IconButton,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import EditIcon from "@mui/icons-material/Edit";
+
+import { X, Pencil } from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 
 import { useEmployeeData, UI_HEADERS } from "../hooks/useEmployeeData.jsx";
@@ -19,6 +20,10 @@ const FileInput = () => {
   const navigate = useNavigate();
   const [fileName, setFileName] = useState("");
   const [errorModalOpen, setErrorModalOpen] = useState(false);
+  
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
+  const [popupSeverity, setPopupSeverity] = useState("success");
 
   const {
     rows,
@@ -37,7 +42,6 @@ const FileInput = () => {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    console.log(file)
     if (!file) return;
     setFileName(file.name);
     const token = localStorage.getItem("access_token");
@@ -46,55 +50,83 @@ const FileInput = () => {
   };
 
   useEffect(() => {
-    if (errorFileLink) setErrorModalOpen(true);
+    if (errorFileLink) {
+      setPopupMessage("File uploaded with errors. Please review.");
+      setPopupSeverity("error");
+      setPopupOpen(true);
+
+      setErrorModalOpen(true);
+    }
   }, [errorFileLink]);
 
+  // 🔹 Success popup
   useEffect(() => {
-    if (success) getProcessedData(0, 10);
+    if (success) {
+      setPopupMessage(success);
+      setPopupSeverity("success");
+      setPopupOpen(true);
+    }
   }, [success]);
+
+  // 🔹 Error popup
+  useEffect(() => {
+    if (error) {
+      setPopupMessage(error);
+      setPopupSeverity("error");
+      setPopupOpen(true);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    getProcessedData();
+  }, []);
 
   const safeErrorRows = errorRows || [];
 
   return (
-    <Box sx={{ width: "100%", pt: 2, pb: 4 }}  >
+    <Box sx={{ width: "100%", pt: 2, pb: 4 }}>
       <Typography variant="h5" fontWeight={600} mb={2}>
         Shift Allowance Data
       </Typography>
 
-      <Stack direction="row" spacing={2} mb={3} alignItems="center">
-       <Button variant="contained" component="label">
-  Upload Excel
-  <input
-    type="file"
-    hidden
-    onClick={(e) => {
-      e.target.value = null;
-    }}
-    onChange={(e) => {
-      handleFileChange(e);
-    }}
-  />
-</Button>
+      <Stack
+        direction="row"
+        alignItems="center"
+        mb={3}
+        sx={{ width: "100%" }}
+        justifyContent="space-between"
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button variant="contained" component="label">
+            Upload Excel
+            <input
+              type="file"
+              hidden
+              onClick={(e) => (e.target.value = null)}
+              onChange={handleFileChange}
+            />
+          </Button>
 
-        <Box sx={{ flexGrow: 1 }} />
+          {fileName && <Typography variant="body1">{fileName}</Typography>}
+        </Stack>
+
         <Button variant="outlined" onClick={downloadExcel}>
           Download Template
         </Button>
-        {fileName && <Typography>{fileName}</Typography>}
       </Stack>
 
-      {error && <Typography color="error">{error}</Typography>}
-      {success && <Typography color="success.main">{success}</Typography>}
 
-      {/* 🔹 Error Modal */}
       <Modal
         open={errorModalOpen}
-        onClose={(e) => {
-          e.stopPrpagation()
+        onClose={(event, reason) => {
+
+          if (reason === "backdropClick") return;
+
           setErrorModalOpen(false);
           setErrorFileLink && setErrorFileLink(null);
         }}
       >
+
         <Paper
           sx={{
             width: "60%",
@@ -107,6 +139,7 @@ const FileInput = () => {
             borderRadius: 2,
           }}
         >
+          
           <IconButton
             sx={{ position: "absolute", right: 12, top: 12 }}
             onClick={() => {
@@ -114,8 +147,9 @@ const FileInput = () => {
               setErrorFileLink && setErrorFileLink(null);
             }}
           >
-            <CloseIcon />
+            <X size={20} />
           </IconButton>
+
 
           <Typography variant="h6" mb={2}>
             File Upload Errors
@@ -124,16 +158,21 @@ const FileInput = () => {
           <Stack direction="column" spacing={2} mb={2}>
             {safeErrorRows.length > 0 && (
               <Stack direction="row" spacing={2}>
+                
                 <Button
                   variant="contained"
-                  startIcon={<EditIcon />}
+                  startIcon={<Pencil size={18} />}
                   onClick={() => {
-                    navigate("/shift-allowance/edit", { state: { errorRows: safeErrorRows } });
+                    navigate("/shift-allowance/edit", {
+                      state: { errorRows: safeErrorRows },
+                    });
                     setErrorModalOpen(false);
                   }}
                 >
                   Edit
                 </Button>
+
+
                 {errorFileLink && (
                   <Button
                     variant="outlined"
@@ -155,6 +194,76 @@ const FileInput = () => {
         totalRecords={totalRecords || 0}
         fetchPage={getProcessedData}
       />
+
+
+      {/* 🔹 Custom Centered Popup */}
+      {popupOpen && (
+        <>
+          {/* Overlay that blurs the background */}
+          <Box
+            sx={{
+              position: "fixed",
+              inset: 0,
+              backdropFilter: "blur(4px)",
+              backgroundColor: "rgba(0,0,0,0.2)",
+              zIndex: 2500,
+            }}
+          />
+
+          {/* Centered Popup */}
+          <Box
+            sx={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              p: 3,
+              minWidth: 300,
+              maxWidth: 400,
+              borderRadius: 2,
+              backgroundColor: "#fff",
+              color: popupSeverity === "error" ? "red" : "green",
+              border:
+                popupSeverity === "error"
+                  ? "2px solid #ef4444"
+                  : "2px solid #22c55e",
+
+
+              boxShadow:
+                popupSeverity === "error"
+                  ? "0 0 12px rgba(239,68,68,0.45)"
+                  : "0 0 12px rgba(34,197,94,0.45)",
+              zIndex: 3000,
+              boxShadow: 5,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <Typography sx={{ fontWeight: 600, textAlign: "center" }}>
+              {popupMessage}
+            </Typography>
+
+            <button
+              onClick={() => setPopupOpen(false)}
+              style={{
+                marginTop: "8px",
+                background: "#1E3A8A",
+                color: "#fff",
+                border: "none",
+                borderRadius: "4px",
+                padding: "6px 16px",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Close
+            </button>
+          </Box>
+        </>
+      )}
+
     </Box>
   );
 };
